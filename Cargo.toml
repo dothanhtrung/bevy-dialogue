@@ -1,0 +1,25 @@
+[package]
+name = "bevy_dialogue"
+version = "0.0.1"
+authors = ["Trung Do <dothanhtrung@pm.me>"]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://gitlab.com/kimtinh/bevy-dialogue"
+keywords = ["bevy"]
+description = "Bevy plugin for NPC's dialog"
+exclude = ["assets", "examples", "tests", ".cargo"]
+categories = ["game-development"]
+
+[dependencies]
+bevy = { version = ">=0.18", features = ["bevy_state", "bevy_asset"], default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+ron = "0.12"
+thiserror = "2.0"
+fastrand = "2.4"
+
+[target.'cfg(all(target_family = "wasm", any(target_os = "unknown", target_os = "none")))'.dependencies]
+getrandom_03 = { version = "0.3", features = ["wasm_js"], package = "getrandom" }
+
+[dev-dependencies]
+bevy = { version = ">=0.18", features = ["dynamic_linking"] }
+
