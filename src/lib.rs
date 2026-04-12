@@ -11,6 +11,7 @@ use bevy::prelude::{
     Deref,
     DerefMut,
     Entity,
+    EntityEvent,
     Event,
     Handle,
     On,
@@ -18,14 +19,25 @@ use bevy::prelude::{
     Query,
     Res,
     Resource,
+    Single,
     States,
     TypePath,
+    With,
 };
+use bevy_rand::prelude::{
+    EntropyPlugin,
+    GlobalRng,
+    WyRand,
+};
+use rand::RngExt;
 use serde::{
     Deserialize,
     Serialize,
 };
-use std::collections::HashMap;
+use std::collections::{
+    BTreeMap,
+    HashMap,
+};
 
 #[derive(Default)]
 pub struct DialoguePlugin<T>
@@ -63,7 +75,8 @@ where
     T: States,
 {
     fn build(&self, app: &mut App) {
-        app.init_asset::<DialogueAsset>()
+        app.add_plugins(EntropyPlugin::<WyRand>::default())
+            .init_asset::<DialogueAsset>()
             .init_asset_loader::<RonAssetLoader<DialogueAsset>>()
             .insert_resource(DialogueRes::default())
             .add_observer(find_dialogue)
@@ -78,7 +91,7 @@ pub struct DialogueRes(pub Handle<DialogueAsset>);
 pub struct DialogueAsset(pub HashMap<u32, Dialogue>); // character classes and their dialogues
 
 #[derive(Serialize, Deserialize, Deref, DerefMut)]
-pub struct Dialogue(pub HashMap<u32, Vec<String>>); // state and list of dialogues
+pub struct Dialogue(pub BTreeMap<u32, Vec<String>>); // state and list of dialogues
 
 #[derive(Component)]
 pub struct DialogueComponent {
@@ -86,12 +99,21 @@ pub struct DialogueComponent {
     pub current_state: u32,
 }
 
+impl DialogueComponent {
+    pub fn new(class: u32) -> Self {
+        Self {
+            class,
+            current_state: 0,
+        }
+    }
+}
+
 #[derive(Event)]
 pub struct RequestDialogue {
     pub entity: Entity,
 }
 
-#[derive(Event, Clone)]
+#[derive(EntityEvent, Clone)]
 pub struct NextDialogue {
     pub entity: Entity,
     pub dialogue: String,
@@ -109,21 +131,21 @@ fn find_dialogue(
     dialogue_res: Res<DialogueRes>,
     dialogue_asset: Res<Assets<DialogueAsset>>,
     query: Query<&DialogueComponent>,
+    mut rng: Single<&mut WyRand, With<GlobalRng>>,
 ) {
-    if let Some(dialogues) = dialogue_asset.get(&dialogue_res.0) {
-        if let Ok(dialogue_class) = query.get(trigger.entity) {
-            if let Some(messages) = dialogues.0.get(&dialogue_class.class) {
-                if let Some(current_messages) = messages.0.get(&dialogue_class.current_state) {
-                    if let Some(message) = fastrand::choice(current_messages.as_slice()) {
-                        let res = NextDialogue {
-                            entity: trigger.entity,
-                            dialogue: message.to_string(),
-                        };
-                        commands.trigger(res);
-                    }
-                }
-            }
-        }
+    if let Some(dialogues) = dialogue_asset.get(&dialogue_res.0)
+        && let Ok(dialogue_class) = query.get(trigger.entity)
+        && let Some(messages) = dialogues.0.get(&dialogue_class.class)
+        && let Some(messages_by_state) = messages.0.get(&dialogue_class.current_state)
+        && !messages_by_state.is_empty()
+    {
+        let random_msg_idx = rng.random_range(0..messages_by_state.len());
+        let dialogue = messages_by_state[random_msg_idx].clone();
+        let res = NextDialogue {
+            entity: trigger.entity,
+            dialogue,
+        };
+        commands.trigger(res);
     }
 }
 
@@ -133,25 +155,26 @@ fn update_state(
     dialogue_asset: Res<Assets<DialogueAsset>>,
     mut query: Query<&mut DialogueComponent>,
 ) {
-    if let Some(dialogues) = dialogue_asset.get(&dialogue_res.0) {
-        if let Ok(mut component) = query.get_mut(trigger.entity) {
-            if let Some(messages) = dialogues.0.get(&component.class) {
-                if let Some(next_state) = trigger.next_state {
-                    for state in messages.0.keys() {
-                        if *state == next_state {
-                            component.current_state = next_state;
-                        }
-                    }
-                } else {
-                    let mut found_current = false;
-                    for state in messages.0.keys() {
-                        if found_current {
-                            component.current_state = *state;
-                        }
-                        if *state == component.current_state {
-                            found_current = true;
-                        }
-                    }
+    if let Some(dialogues) = dialogue_asset.get(&dialogue_res.0)
+        && let Ok(mut component) = query.get_mut(trigger.entity)
+        && let Some(messages) = dialogues.0.get(&component.class)
+    {
+        if let Some(next_state) = trigger.next_state {
+            for state in messages.0.keys() {
+                if *state == next_state {
+                    component.current_state = next_state;
+                    break;
+                }
+            }
+        } else {
+            let mut found_current = false;
+            for state in messages.0.keys() {
+                if found_current {
+                    component.current_state = *state;
+                    break;
+                }
+                if *state == component.current_state {
+                    found_current = true;
                 }
             }
         }
