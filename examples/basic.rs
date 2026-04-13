@@ -18,7 +18,7 @@ fn main() {
 }
 
 fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_res: ResMut<DialogueRes>) {
-    dialogue_res.0 = asset_server.load("sample.ron");
+    dialogue_res.dialogues = asset_server.load("dialogue_sample.ron");
     commands.spawn(Camera2d);
 
     commands

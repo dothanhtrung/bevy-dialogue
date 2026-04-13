@@ -1,6 +1,6 @@
-mod asset_loader;
+mod ron_loader;
 
-use crate::asset_loader::RonAssetLoader;
+use crate::ron_loader::RonAssetLoader;
 use bevy::prelude::{
     App,
     Asset,
@@ -8,8 +8,6 @@ use bevy::prelude::{
     Assets,
     Commands,
     Component,
-    Deref,
-    DerefMut,
     Entity,
     EntityEvent,
     Event,
@@ -84,14 +82,19 @@ where
     }
 }
 
-#[derive(Resource, Default, Deref, DerefMut)]
-pub struct DialogueRes(pub Handle<DialogueAsset>);
+#[derive(Resource, Default)]
+pub struct DialogueRes {
+    pub dialogues: Handle<DialogueAsset>,
+    pub id_map: Handle<DialogueIdMap>,
+}
 
+/// List of dialogues by character kind and by state
 #[derive(Asset, TypePath, Serialize, Deserialize, Default)]
-pub struct DialogueAsset(pub HashMap<u32, Dialogue>); // character classes and their dialogues
+pub struct DialogueAsset(pub HashMap<u32, BTreeMap<u32, Vec<String>>>);
 
-#[derive(Serialize, Deserialize, Deref, DerefMut)]
-pub struct Dialogue(pub BTreeMap<u32, Vec<String>>); // state and list of dialogues
+/// Map from character kind or state to number id
+#[derive(Asset, TypePath, Serialize, Deserialize, Default)]
+pub struct DialogueIdMap(pub HashMap<String, u32>);
 
 #[derive(Component)]
 pub struct DialogueComponent {
@@ -133,14 +136,14 @@ fn find_dialogue(
     query: Query<&DialogueComponent>,
     mut rng: Single<&mut WyRand, With<GlobalRng>>,
 ) {
-    if let Some(dialogues) = dialogue_asset.get(&dialogue_res.0)
-        && let Ok(dialogue_class) = query.get(trigger.entity)
-        && let Some(messages) = dialogues.0.get(&dialogue_class.class)
-        && let Some(messages_by_state) = messages.0.get(&dialogue_class.current_state)
-        && !messages_by_state.is_empty()
+    if let Some(dialogue_asset) = dialogue_asset.get(&dialogue_res.dialogues)
+        && let Ok(npc) = query.get(trigger.entity)
+        && let Some(dialogues) = dialogue_asset.0.get(&npc.class)
+        && let Some(dialogue) = dialogues.get(&npc.current_state)
+        && !dialogue.is_empty()
     {
-        let random_msg_idx = rng.random_range(0..messages_by_state.len());
-        let dialogue = messages_by_state[random_msg_idx].clone();
+        let random_msg_idx = rng.random_range(0..dialogue.len());
+        let dialogue = dialogue[random_msg_idx].clone();
         let res = NextDialogue {
             entity: trigger.entity,
             dialogue,
@@ -155,25 +158,25 @@ fn update_state(
     dialogue_asset: Res<Assets<DialogueAsset>>,
     mut query: Query<&mut DialogueComponent>,
 ) {
-    if let Some(dialogues) = dialogue_asset.get(&dialogue_res.0)
-        && let Ok(mut component) = query.get_mut(trigger.entity)
-        && let Some(messages) = dialogues.0.get(&component.class)
+    if let Some(dialogue_asset) = dialogue_asset.get(&dialogue_res.dialogues)
+        && let Ok(mut npc) = query.get_mut(trigger.entity)
+        && let Some(dialogues) = dialogue_asset.0.get(&npc.class)
     {
         if let Some(next_state) = trigger.next_state {
-            for state in messages.0.keys() {
+            for state in dialogues.keys() {
                 if *state == next_state {
-                    component.current_state = next_state;
+                    npc.current_state = next_state;
                     break;
                 }
             }
         } else {
             let mut found_current = false;
-            for state in messages.0.keys() {
+            for state in dialogues.keys() {
                 if found_current {
-                    component.current_state = *state;
+                    npc.current_state = *state;
                     break;
                 }
-                if *state == component.current_state {
+                if *state == npc.current_state {
                     found_current = true;
                 }
             }
