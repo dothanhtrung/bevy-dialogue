@@ -53,6 +53,6 @@ fn click_to_talk(
 
 fn print_dialogue(trigger: On<NextDialogue>, mut query: Query<&mut Text>) {
     for mut text in query.iter_mut() {
-        **text = trigger.dialogue.clone();
+        **text = trigger.dialogue.content.clone();
     }
 }

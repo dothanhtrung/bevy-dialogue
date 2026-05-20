@@ -1,31 +1,34 @@
-mod ron_loader;
-
-use crate::ron_loader::RonAssetLoader;
-use bevy::prelude::{
-    App,
-    Asset,
-    AssetApp,
-    Assets,
-    Commands,
-    Component,
-    Entity,
-    EntityEvent,
-    Event,
-    Handle,
-    On,
-    Plugin,
-    Query,
-    Res,
-    Resource,
-    Single,
-    States,
-    TypePath,
-    With,
+use bevy::{
+    prelude::{
+        App,
+        Asset,
+        AssetApp,
+        Assets,
+        Commands,
+        Component,
+        Entity,
+        EntityEvent,
+        Event,
+        Handle,
+        On,
+        Plugin,
+        Query,
+        Res,
+        Resource,
+        Single,
+        States,
+        TypePath,
+        With,
+    },
 };
 use bevy_rand::prelude::{
     EntropyPlugin,
     GlobalRng,
     WyRand,
+};
+use bevy_support_misc::{
+    bincode_asset_loader::BincodeLoaderPlugin,
+    ron_asset_loader::RonLoaderPlugin,
 };
 use rand::RngExt;
 use serde::{
@@ -73,13 +76,26 @@ where
     T: States,
 {
     fn build(&self, app: &mut App) {
-        app.add_plugins(EntropyPlugin::<WyRand>::default())
-            .init_asset::<DialogueAsset>()
-            .init_asset_loader::<RonAssetLoader<DialogueAsset>>()
-            .insert_resource(DialogueRes::default())
-            .add_observer(find_dialogue)
-            .add_observer(update_state);
+        if !app.is_plugin_added::<EntropyPlugin<WyRand>>() {
+            app.add_plugins(EntropyPlugin::<WyRand>::default());
+        };
+        app.add_plugins((
+            RonLoaderPlugin::<DialogueAsset>::default(),
+            BincodeLoaderPlugin::<DialogueAsset>::default(),
+        ))
+        .init_asset::<DialogueAsset>()
+        .insert_resource(DialogueRes::default())
+        .add_observer(find_dialogue)
+        .add_observer(update_state);
     }
+}
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct Dialogue {
+    pub content: String,
+    /// The class this dialogue will affect and the state that class will change to
+    #[serde(default)]
+    pub affect: Option<(u32, u32)>,
 }
 
 #[derive(Resource, Default)]
@@ -90,13 +106,13 @@ pub struct DialogueRes {
 
 /// List of dialogues by character kind and by state
 #[derive(Asset, TypePath, Serialize, Deserialize, Default)]
-pub struct DialogueAsset(pub HashMap<u32, BTreeMap<u32, Vec<String>>>);
+pub struct DialogueAsset(pub HashMap<u32, BTreeMap<u32, Vec<Dialogue>>>);
 
 /// Map from character kind or state to number id
 #[derive(Asset, TypePath, Serialize, Deserialize, Default)]
 pub struct DialogueIdMap(pub HashMap<String, u32>);
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct DialogueComponent {
     pub class: u32,
     pub current_state: u32,
@@ -119,7 +135,7 @@ pub struct RequestDialogue {
 #[derive(EntityEvent, Clone)]
 pub struct NextDialogue {
     pub entity: Entity,
-    pub dialogue: String,
+    pub dialogue: Dialogue,
 }
 
 #[derive(Event)]

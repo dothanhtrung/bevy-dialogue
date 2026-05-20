@@ -13,13 +13,11 @@ categories = ["game-development"]
 [dependencies]
 bevy = { version = ">=0.18", features = ["bevy_state", "bevy_asset"], default-features = false }
 bevy_rand = { version = "0.14", default-features = false, features = ["wyrand"] }
+bevy_support_misc = {path="../bevy-support-misc" , features = ["ron_loader", "bincode_loader"]}
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 ron = { version = "0.12", default-features = false }
 thiserror = { version = "2.0", default-features = false }
 rand = { version = "0.10", default-features = false }
-
-[target.'cfg(all(target_family = "wasm", any(target_os = "unknown", target_os = "none")))'.dependencies]
-getrandom_03 = { version = "0.3", features = ["wasm_js"], package = "getrandom", optional = true }
 
 [dev-dependencies]
 bevy = { version = ">=0.18", features = ["dynamic_linking"] }

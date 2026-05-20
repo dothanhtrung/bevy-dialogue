@@ -1,37 +1,22 @@
-(
-    {
-        1: (
-            {
-                0: [
-                    "State 0: Hello",
-                    "State 0: Hi",
-                    "State 0: Hi1",
-                    "State 0: Hi2",
-                    "State 0: Hi3",
-                    "State 0: Hi4",
-                    "State 0: Hi5",
-                    "State 0: Hi6",
-                    "State 0: Hi7",
-                ],
-                5: [
-                    "State 5: Hehehehe",
-                    "State 5: Ohohoho",
-                    "State 5: Ohohoho 1",
-                    "State 5: Ohohoho 2",
-                    "State 5: Ohohoho3",
-                    "State 5: Ohohoho4",
-                    "State 5: Ohohoho5",
-                    "State 5: Ohohoho6",
-                    "State 5: Ohohoho7",
-                    "State 5: Ohohoho8",
-                    "State 5: Ohohoho9",
-                    "State 5: HIHIHI",
-                ],
-                10: [
-                    "State 10: AAAAAA",
-                    "State 10: BBBBB",
-                ],
-            },
-        ),
-    },
-)
+({
+    1: 
+        {
+            0: [
+                    (
+                    content: "State 0: Hello",
+                ),
+                    (
+                    content: "State 0: Hi",
+                )
+            ],
+            5: [
+                (content: "State 5: Hehehehe"),
+                (content: "State 5: Ohohoho"),
+            ],
+            10: [
+                (content: "State 10: AAAAAA"),
+                (content: "State 10: BBBBB"),
+            ],
+        },
+    
+},)
