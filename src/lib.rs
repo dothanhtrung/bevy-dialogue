@@ -130,18 +130,50 @@ impl DialogueComponent {
     }
 }
 
+#[derive(Default)]
+pub enum RequestType {
+    #[default]
+    /// Return all dialogues of current state
+    Normal,
+    /// Return a random dialogue of current state
+    Random,
+}
+
 #[derive(EntityEvent)]
 pub struct RequestDialogue {
     #[entity_event]
     pub entity: Entity,
-    #[event_target]
+    /// The target whom character talk to
     pub to: Option<Entity>,
+    pub request_type: RequestType,
+    /// Request exactly a dialogue by index. This is often used when select choice
+    pub request_index: Option<usize>,
+}
+
+impl RequestDialogue {
+    pub fn new(entity: Entity) -> Self {
+        Self {
+            entity,
+            to: None,
+            request_type: RequestType::default(),
+            request_index: None,
+        }
+    }
+
+    pub fn to(entity: Entity, to: Entity) -> Self {
+        Self {
+            entity,
+            to: Some(to),
+            request_type: RequestType::default(),
+            request_index: None,
+        }
+    }
 }
 
 #[derive(EntityEvent, Clone)]
 pub struct NextDialogue {
     pub entity: Entity,
-    pub dialogue: Dialogue,
+    pub dialogues: Vec<Dialogue>,
 }
 
 #[derive(Event)]
@@ -177,23 +209,44 @@ fn find_dialogue(
         None
     };
 
-    if let Some(dialogues) = dialogue_asset.dialogues.get(&character.class) {
+    if let Some(states) = dialogue_asset.dialogues.get(&character.class) {
         let character_state = affect_state.unwrap_or(character.state);
-        if let Some(dialogue) = dialogues.get(&character_state)
-            && !dialogue.is_empty()
+        if let Some(dialogues) = states.get(&character_state)
+            && !dialogues.is_empty()
         {
-            let random_msg_idx = rng.random_range(0..dialogue.len());
-            let dialogue = dialogue[random_msg_idx].clone();
-            let res = NextDialogue {
-                entity: trigger.entity,
-                dialogue,
-            };
-            commands.trigger(res);
-
             if let Ok(mut character) = query.get_mut(trigger.entity) {
                 character.state = character_state;
-                character.dialogue = random_msg_idx;
             }
+
+            let mut ret_dialogues = Vec::new();
+            match trigger.request_type {
+                RequestType::Normal => {
+                    if let Some(index) = trigger.request_index
+                        && let Some(dialog) = dialogues.get(index)
+                    {
+                        ret_dialogues.push(dialog.clone());
+                        if let Ok(mut character) = query.get_mut(trigger.entity) {
+                            character.dialogue = index;
+                        }
+                    } else {
+                        ret_dialogues = dialogues.clone();
+                    }
+                }
+                RequestType::Random => {
+                    let random_msg_idx = rng.random_range(0..dialogues.len());
+                    ret_dialogues.push(dialogues[random_msg_idx].clone());
+
+                    if let Ok(mut character) = query.get_mut(trigger.entity) {
+                        character.dialogue = random_msg_idx;
+                    }
+                }
+            }
+
+            let res = NextDialogue {
+                entity: trigger.entity,
+                dialogues: ret_dialogues,
+            };
+            commands.trigger(res);
         }
     }
 }

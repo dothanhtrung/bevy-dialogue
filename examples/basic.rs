@@ -42,20 +42,21 @@ fn click_to_talk(
 ) {
     for entity in npc.iter() {
         if mouse_btn.just_pressed(MouseButton::Left) {
-            commands.trigger(RequestDialogue { entity, to: None });
+            commands.trigger(RequestDialogue::new(entity));
         } else if mouse_btn.just_pressed(MouseButton::Right) {
             commands.trigger(DialogueStateChanged {
                 entity,
                 next_state: None,
             });
-            commands.trigger(RequestDialogue { entity, to: None });
+            commands.trigger(RequestDialogue::new(entity));
         }
     }
 }
 
 fn print_dialogue(trigger: On<NextDialogue>, mut query: Query<&mut Text>) {
+    // TODO: Improve example
     for mut text in query.iter_mut() {
-        if let Some((_, content)) = trigger.dialogue.contents.first_key_value() {
+        if let Some((_, content)) = trigger.dialogues[0].contents.first_key_value() {
             **text = content.clone();
         }
     }
