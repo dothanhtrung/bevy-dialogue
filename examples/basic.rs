@@ -30,7 +30,9 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_
         })
         .with_child(Text::new(""));
 
-    commands.spawn(DialogueComponent::new(1)).observe(print_dialogue);
+    commands
+        .spawn(DialogueComponent::new(16570138400533011457, 1457452471715694895))
+        .observe(print_dialogue);
 }
 
 fn click_to_talk(
@@ -40,19 +42,21 @@ fn click_to_talk(
 ) {
     for entity in npc.iter() {
         if mouse_btn.just_pressed(MouseButton::Left) {
-            commands.trigger(RequestDialogue { entity });
+            commands.trigger(RequestDialogue { entity, to: None });
         } else if mouse_btn.just_pressed(MouseButton::Right) {
             commands.trigger(DialogueStateChanged {
                 entity,
                 next_state: None,
             });
-            commands.trigger(RequestDialogue { entity });
+            commands.trigger(RequestDialogue { entity, to: None });
         }
     }
 }
 
 fn print_dialogue(trigger: On<NextDialogue>, mut query: Query<&mut Text>) {
     for mut text in query.iter_mut() {
-        **text = trigger.dialogue.content.clone();
+        if let Some((_, content)) = trigger.dialogue.contents.first_key_value() {
+            **text = content.clone();
+        }
     }
 }

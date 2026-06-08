@@ -1,22 +1,82 @@
-({
-    1: 
-        {
-            0: [
-                    (
-                    content: "State 0: Hello",
+(
+    dialogues: {
+        16570138400533011457: {
+            1457452471715694895: [
+                (
+                    contents: {
+                        "eng": "asdasd Hello",
+                        "vie": "hola",
+                    },
+                    affects: {
+                        16570138400533011457: 1457452471715694895,
+                    },
                 ),
-                    (
-                    content: "State 0: Hi",
-                )
+                (
+                    contents: {},
+                    affects: {},
+                ),
+                (
+                    contents: {},
+                    affects: {},
+                ),
+                (
+                    contents: {
+                        "und": "asdasd",
+                    },
+                    affects: {},
+                ),
             ],
-            5: [
-                (content: "State 5: Hehehehe"),
-                (content: "State 5: Ohohoho"),
-            ],
-            10: [
-                (content: "State 10: AAAAAA"),
-                (content: "State 10: BBBBB"),
+            13911259880336135218: [
+                (
+                    contents: {},
+                    affects: {},
+                ),
+                (
+                    contents: {},
+                    affects: {},
+                ),
+                (
+                    contents: {},
+                    affects: {},
+                ),
+                (
+                    contents: {},
+                    affects: {},
+                ),
             ],
         },
-    
-},)
+        3923543307463110011: {
+            1457452471715694895: [
+                (
+                    contents: {
+                        "vie": "new dialogmmmm7tuyg",
+                    },
+                    affects: {},
+                ),
+            ],
+        },
+        9716668848554983429: {
+            13911259880336135218: [
+                (
+                    contents: {
+                        "eng": "new dialogmmmm",
+                        "vie": "new dialogmmmm7tuyg",
+                    },
+                    affects: {
+                        9716668848554983429: 13911259880336135218,
+                    },
+                ),
+            ],
+        },
+        17598875771229354592: {},
+    },
+    class_name_map: {
+        9716668848554983429: "New classasdasdasd",
+        3923543307463110011: "New class",
+        16570138400533011457: "New classasdasd",
+    },
+    state_name_map: {
+        1457452471715694895: "New statead",
+        13911259880336135218: "New state",
+    },
+)

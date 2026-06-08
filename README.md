@@ -6,6 +6,9 @@ bevy_dialogue
 [![dependency status](https://deps.rs/repo/gitlab/kimtinh/bevy-dialogue/status.svg)](https://deps.rs/repo/gitlab/kimtinh/bevy-dialogue)
 [![pipeline status](https://gitlab.com/kimtinh/bevy-dialogue/badges/master/pipeline.svg)](https://gitlab.com/kimtinh/bevy-dialogue/-/commits/master)
 
+Bevy plugin for load and retrieve characters dialogues.
+
+The dialogues can be managed with [Dialogue Editor](https://gitlab.com/kimtinh/dialogue-editor)
 
 Quickstart
 ----------

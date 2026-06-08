@@ -30,6 +30,7 @@ use bevy_support_misc::{
     bincode_asset_loader::BincodeLoaderPlugin,
     ron_asset_loader::RonLoaderPlugin,
 };
+use isolang::Language;
 use rand::RngExt;
 use serde::{
     Deserialize,
@@ -92,44 +93,49 @@ where
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Dialogue {
-    pub content: String,
+    #[serde(default)]
+    pub contents: BTreeMap<Language, String>,
     /// The class this dialogue will affect and the state that class will change to
     #[serde(default)]
-    pub affect: Option<(u32, u32)>,
+    pub affects: BTreeMap<u64, u64>,
 }
 
 #[derive(Resource, Default)]
 pub struct DialogueRes {
     pub dialogues: Handle<DialogueAsset>,
-    pub id_map: Handle<DialogueIdMap>,
 }
 
 /// List of dialogues by character kind and by state
 #[derive(Asset, TypePath, Serialize, Deserialize, Default)]
-pub struct DialogueAsset(pub HashMap<u32, BTreeMap<u32, Vec<Dialogue>>>);
-
-/// Map from character kind or state to number id
-#[derive(Asset, TypePath, Serialize, Deserialize, Default)]
-pub struct DialogueIdMap(pub HashMap<String, u32>);
+pub struct DialogueAsset {
+    pub dialogues: HashMap<u64, BTreeMap<u64, Vec<Dialogue>>>,
+    pub class_name_map: HashMap<u64, String>,
+    pub state_name_map: HashMap<u64, String>,
+}
 
 #[derive(Component, Default, Clone)]
 pub struct DialogueComponent {
-    pub class: u32,
-    pub current_state: u32,
+    pub class: u64,
+    pub state: u64,
+    pub dialogue: usize,
 }
 
 impl DialogueComponent {
-    pub fn new(class: u32) -> Self {
+    pub fn new(class: u64, state: u64) -> Self {
         Self {
             class,
-            current_state: 0,
+            state,
+            dialogue: 0,
         }
     }
 }
 
-#[derive(Event)]
+#[derive(EntityEvent)]
 pub struct RequestDialogue {
+    #[entity_event]
     pub entity: Entity,
+    #[event_target]
+    pub to: Option<Entity>,
 }
 
 #[derive(EntityEvent, Clone)]
@@ -141,7 +147,7 @@ pub struct NextDialogue {
 #[derive(Event)]
 pub struct DialogueStateChanged {
     pub entity: Entity,
-    pub next_state: Option<u32>,
+    pub next_state: Option<u64>,
 }
 
 fn find_dialogue(
@@ -149,22 +155,46 @@ fn find_dialogue(
     mut commands: Commands,
     dialogue_res: Res<DialogueRes>,
     dialogue_asset: Res<Assets<DialogueAsset>>,
-    query: Query<&DialogueComponent>,
+    mut query: Query<&mut DialogueComponent>,
     mut rng: Single<&mut WyRand, With<GlobalRng>>,
 ) {
-    if let Some(dialogue_asset) = dialogue_asset.get(&dialogue_res.dialogues)
-        && let Ok(npc) = query.get(trigger.entity)
-        && let Some(dialogues) = dialogue_asset.0.get(&npc.class)
-        && let Some(dialogue) = dialogues.get(&npc.current_state)
-        && !dialogue.is_empty()
+    let Ok(character) = query.get(trigger.entity) else {
+        return;
+    };
+    let Some(dialogue_asset) = dialogue_asset.get(&dialogue_res.dialogues) else {
+        return;
+    };
+
+    let affect_state = if let Some(target_entity) = trigger.to
+        && let Ok(target) = query.get(target_entity)
+        && let Some(target_states) = dialogue_asset.dialogues.get(&target.class)
+        && let Some(target_dialogues) = target_states.get(&target.state)
+        && let Some(target_dialogue) = target_dialogues.get(target.dialogue)
+        && let Some(affect_state) = target_dialogue.affects.get(&character.class)
     {
-        let random_msg_idx = rng.random_range(0..dialogue.len());
-        let dialogue = dialogue[random_msg_idx].clone();
-        let res = NextDialogue {
-            entity: trigger.entity,
-            dialogue,
-        };
-        commands.trigger(res);
+        Some(*affect_state)
+    } else {
+        None
+    };
+
+    if let Some(dialogues) = dialogue_asset.dialogues.get(&character.class) {
+        let character_state = affect_state.unwrap_or(character.state);
+        if let Some(dialogue) = dialogues.get(&character_state)
+            && !dialogue.is_empty()
+        {
+            let random_msg_idx = rng.random_range(0..dialogue.len());
+            let dialogue = dialogue[random_msg_idx].clone();
+            let res = NextDialogue {
+                entity: trigger.entity,
+                dialogue,
+            };
+            commands.trigger(res);
+
+            if let Ok(mut character) = query.get_mut(trigger.entity) {
+                character.state = character_state;
+                character.dialogue = random_msg_idx;
+            }
+        }
     }
 }
 
@@ -176,12 +206,12 @@ fn update_state(
 ) {
     if let Some(dialogue_asset) = dialogue_asset.get(&dialogue_res.dialogues)
         && let Ok(mut npc) = query.get_mut(trigger.entity)
-        && let Some(dialogues) = dialogue_asset.0.get(&npc.class)
+        && let Some(dialogues) = dialogue_asset.dialogues.get(&npc.class)
     {
         if let Some(next_state) = trigger.next_state {
             for state in dialogues.keys() {
                 if *state == next_state {
-                    npc.current_state = next_state;
+                    npc.state = next_state;
                     break;
                 }
             }
@@ -189,12 +219,16 @@ fn update_state(
             let mut found_current = false;
             for state in dialogues.keys() {
                 if found_current {
-                    npc.current_state = *state;
+                    npc.state = *state;
                     break;
                 }
-                if *state == npc.current_state {
+                if *state == npc.state {
                     found_current = true;
                 }
+            }
+            // If current state is not in the state list
+            if !found_current && let Some((first_state, _)) = dialogues.first_key_value() {
+                npc.state = *first_state;
             }
         }
     }
