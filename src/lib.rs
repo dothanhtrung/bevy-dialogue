@@ -103,6 +103,8 @@ pub struct Dialogue {
 #[derive(Resource, Default)]
 pub struct DialogueRes {
     pub dialogues: Handle<DialogueAsset>,
+    /// Variable to be replaced in the dialogue
+    pub variables: HashMap<String, String>,
 }
 
 /// List of dialogues by character kind and by state
@@ -224,7 +226,11 @@ fn find_dialogue(
                     if let Some(index) = trigger.request_index
                         && let Some(dialog) = dialogues.get(index)
                     {
-                        ret_dialogues.push(dialog.clone());
+                        let mut dialog = dialog.clone();
+                        for (_, content) in dialog.contents.iter_mut() {
+                            *content = replace_templates(content, &dialogue_res.variables)
+                        }
+                        ret_dialogues.push(dialog);
                         if let Ok(mut character) = query.get_mut(trigger.entity) {
                             character.dialogue = index;
                         }
@@ -234,7 +240,12 @@ fn find_dialogue(
                 }
                 RequestType::Random => {
                     let random_msg_idx = rng.random_range(0..dialogues.len());
-                    ret_dialogues.push(dialogues[random_msg_idx].clone());
+                    let mut dialog = dialogues[random_msg_idx].clone();
+                    for (_, content) in dialog.contents.iter_mut() {
+                        *content = replace_templates(content, &dialogue_res.variables)
+                    }
+
+                    ret_dialogues.push(dialog);
 
                     if let Ok(mut character) = query.get_mut(trigger.entity) {
                         character.dialogue = random_msg_idx;
@@ -285,4 +296,36 @@ fn update_state(
             }
         }
     }
+}
+
+fn replace_templates(template: &str, vars: &HashMap<String, String>) -> String {
+    let mut result = String::with_capacity(template.len());
+    let mut cursor = template;
+
+    while let Some(start_idx) = cursor.find("{{") {
+        result.push_str(&cursor[..start_idx]);
+
+        let remainder = &cursor[start_idx + 2..];
+
+        if let Some(end_idx) = remainder.find("}}") {
+            let key = &remainder[..end_idx];
+
+            if let Some(value) = vars.get(key) {
+                result.push_str(value);
+            } else {
+                result.push_str("{{");
+                result.push_str(key);
+                result.push_str("}}");
+            }
+
+            cursor = &remainder[end_idx + 2..];
+        } else {
+            result.push_str("{{");
+            cursor = remainder;
+            break;
+        }
+    }
+
+    result.push_str(cursor);
+    result
 }
