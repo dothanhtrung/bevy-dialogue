@@ -18,7 +18,7 @@ fn main() {
 }
 
 fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_res: ResMut<DialogueRes>) {
-    dialogue_res.dialogues = asset_server.load("dialogue_sample.ron");
+    dialogue_res.dialogues.push(asset_server.load("dialogue_sample.ron"));
     commands.spawn(Camera2d);
 
     commands
@@ -30,8 +30,9 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_
         })
         .with_child(Text::new(""));
 
+    // The id is hashed from string. You can get this id by `xxh3_64(string_value)`.
     commands
-        .spawn(DialogueComponent::new(16570138400533011457, 1457452471715694895))
+        .spawn(DialogueComponent::new(2087775913480848054, 7173758463185314716))
         .observe(print_dialogue);
 }
 

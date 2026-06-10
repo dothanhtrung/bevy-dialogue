@@ -102,7 +102,7 @@ pub struct Dialogue {
 
 #[derive(Resource, Default)]
 pub struct DialogueRes {
-    pub dialogues: Handle<DialogueAsset>,
+    pub dialogues: Vec<Handle<DialogueAsset>>,
     /// Variable to be replaced in the dialogue
     pub variables: HashMap<String, String>,
 }
@@ -111,8 +111,6 @@ pub struct DialogueRes {
 #[derive(Asset, TypePath, Serialize, Deserialize, Default)]
 pub struct DialogueAsset {
     pub dialogues: HashMap<u64, BTreeMap<u64, Vec<Dialogue>>>,
-    pub class_name_map: HashMap<u64, String>,
-    pub state_name_map: HashMap<u64, String>,
 }
 
 #[derive(Component, Default, Clone)]
@@ -135,10 +133,10 @@ impl DialogueComponent {
 #[derive(Default)]
 pub enum RequestType {
     #[default]
-    /// Return all dialogues of current state
-    Normal,
     /// Return a random dialogue of current state
     Random,
+    /// Return all dialogues of current state
+    Normal,
 }
 
 #[derive(EntityEvent)]
@@ -195,69 +193,72 @@ fn find_dialogue(
     let Ok(character) = query.get(trigger.entity) else {
         return;
     };
-    let Some(dialogue_asset) = dialogue_asset.get(&dialogue_res.dialogues) else {
-        return;
-    };
+    for handle in dialogue_res.dialogues.iter() {
+        let Some(dialogue_asset) = dialogue_asset.get(handle) else {
+            continue;
+        };
 
-    let affect_state = if let Some(target_entity) = trigger.to
-        && let Ok(target) = query.get(target_entity)
-        && let Some(target_states) = dialogue_asset.dialogues.get(&target.class)
-        && let Some(target_dialogues) = target_states.get(&target.state)
-        && let Some(target_dialogue) = target_dialogues.get(target.dialogue)
-        && let Some(affect_state) = target_dialogue.affects.get(&character.class)
-    {
-        Some(*affect_state)
-    } else {
-        None
-    };
-
-    if let Some(states) = dialogue_asset.dialogues.get(&character.class) {
-        let character_state = affect_state.unwrap_or(character.state);
-        if let Some(dialogues) = states.get(&character_state)
-            && !dialogues.is_empty()
+        let affect_state = if let Some(target_entity) = trigger.to
+            && let Ok(target) = query.get(target_entity)
+            && let Some(target_states) = dialogue_asset.dialogues.get(&target.class)
+            && let Some(target_dialogues) = target_states.get(&target.state)
+            && let Some(target_dialogue) = target_dialogues.get(target.dialogue)
+            && let Some(affect_state) = target_dialogue.affects.get(&character.class)
         {
-            if let Ok(mut character) = query.get_mut(trigger.entity) {
-                character.state = character_state;
-            }
+            Some(*affect_state)
+        } else {
+            None
+        };
 
-            let mut ret_dialogues = Vec::new();
-            match trigger.request_type {
-                RequestType::Normal => {
-                    if let Some(index) = trigger.request_index
-                        && let Some(dialog) = dialogues.get(index)
-                    {
-                        let mut dialog = dialog.clone();
-                        for (_, content) in dialog.contents.iter_mut() {
-                            *content = replace_templates(content, &dialogue_res.variables)
-                        }
-                        ret_dialogues.push(dialog);
-                        if let Ok(mut character) = query.get_mut(trigger.entity) {
-                            character.dialogue = index;
-                        }
-                    } else {
-                        ret_dialogues = dialogues.clone();
-                    }
-                }
-                RequestType::Random => {
-                    let random_msg_idx = rng.random_range(0..dialogues.len());
-                    let mut dialog = dialogues[random_msg_idx].clone();
-                    for (_, content) in dialog.contents.iter_mut() {
-                        *content = replace_templates(content, &dialogue_res.variables)
-                    }
-
-                    ret_dialogues.push(dialog);
-
+        if let Some(states) = dialogue_asset.dialogues.get(&character.class) {
+            let character_state = affect_state.unwrap_or(character.state);
+            if let Some(dialogues) = states.get(&character_state) {
+                if !dialogues.is_empty() {
                     if let Ok(mut character) = query.get_mut(trigger.entity) {
-                        character.dialogue = random_msg_idx;
+                        character.state = character_state;
                     }
-                }
-            }
 
-            let res = NextDialogue {
-                entity: trigger.entity,
-                dialogues: ret_dialogues,
-            };
-            commands.trigger(res);
+                    let mut ret_dialogues = Vec::new();
+                    match trigger.request_type {
+                        RequestType::Normal => {
+                            if let Some(index) = trigger.request_index
+                                && let Some(dialog) = dialogues.get(index)
+                            {
+                                let mut dialog = dialog.clone();
+                                for (_, content) in dialog.contents.iter_mut() {
+                                    *content = replace_templates(content, &dialogue_res.variables)
+                                }
+                                ret_dialogues.push(dialog);
+                                if let Ok(mut character) = query.get_mut(trigger.entity) {
+                                    character.dialogue = index;
+                                }
+                            } else {
+                                ret_dialogues = dialogues.clone();
+                            }
+                        }
+                        RequestType::Random => {
+                            let random_msg_idx = rng.random_range(0..dialogues.len());
+                            let mut dialog = dialogues[random_msg_idx].clone();
+                            for (_, content) in dialog.contents.iter_mut() {
+                                *content = replace_templates(content, &dialogue_res.variables)
+                            }
+
+                            ret_dialogues.push(dialog);
+
+                            if let Ok(mut character) = query.get_mut(trigger.entity) {
+                                character.dialogue = random_msg_idx;
+                            }
+                        }
+                    }
+
+                    let res = NextDialogue {
+                        entity: trigger.entity,
+                        dialogues: ret_dialogues,
+                    };
+                    commands.trigger(res);
+                }
+                break;
+            }
         }
     }
 }
@@ -268,32 +269,38 @@ fn update_state(
     dialogue_asset: Res<Assets<DialogueAsset>>,
     mut query: Query<&mut DialogueComponent>,
 ) {
-    if let Some(dialogue_asset) = dialogue_asset.get(&dialogue_res.dialogues)
-        && let Ok(mut npc) = query.get_mut(trigger.entity)
-        && let Some(dialogues) = dialogue_asset.dialogues.get(&npc.class)
-    {
-        if let Some(next_state) = trigger.next_state {
-            for state in dialogues.keys() {
-                if *state == next_state {
-                    npc.state = next_state;
-                    break;
+    for handle in dialogue_res.dialogues.iter() {
+        let Some(dialogue_asset) = dialogue_asset.get(handle) else {
+            continue;
+        };
+        if let Ok(mut npc) = query.get_mut(trigger.entity)
+            && let Some(dialogues) = dialogue_asset.dialogues.get(&npc.class)
+        {
+            if let Some(next_state) = trigger.next_state {
+                for state in dialogues.keys() {
+                    if *state == next_state {
+                        npc.state = next_state;
+                        break;
+                    }
+                }
+            } else {
+                let mut found_current = false;
+                for state in dialogues.keys() {
+                    if found_current {
+                        npc.state = *state;
+                        break;
+                    }
+                    if *state == npc.state {
+                        found_current = true;
+                    }
+                }
+                // If current state is not in the state list
+                if !found_current && let Some((first_state, _)) = dialogues.first_key_value() {
+                    npc.state = *first_state;
                 }
             }
-        } else {
-            let mut found_current = false;
-            for state in dialogues.keys() {
-                if found_current {
-                    npc.state = *state;
-                    break;
-                }
-                if *state == npc.state {
-                    found_current = true;
-                }
-            }
-            // If current state is not in the state list
-            if !found_current && let Some((first_state, _)) = dialogues.first_key_value() {
-                npc.state = *first_state;
-            }
+
+            break;
         }
     }
 }

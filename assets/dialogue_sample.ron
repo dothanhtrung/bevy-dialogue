@@ -1,82 +1,80 @@
 (
     dialogues: {
-        16570138400533011457: {
-            1457452471715694895: [
+        2087775913480848054: {
+            7173758463185314716: [
                 (
                     contents: {
-                        "eng": "asdasd Hello",
-                        "vie": "hola",
+                        "eng": "Good morning!",
                     },
                     affects: {
-                        16570138400533011457: 1457452471715694895,
+                        9475405830538739162: 3052536066844523070,
                     },
                 ),
                 (
-                    contents: {},
-                    affects: {},
-                ),
-                (
-                    contents: {},
-                    affects: {},
-                ),
-                (
                     contents: {
-                        "und": "asdasd",
-                    },
-                    affects: {},
-                ),
-            ],
-            13911259880336135218: [
-                (
-                    contents: {},
-                    affects: {},
-                ),
-                (
-                    contents: {},
-                    affects: {},
-                ),
-                (
-                    contents: {},
-                    affects: {},
-                ),
-                (
-                    contents: {},
-                    affects: {},
-                ),
-            ],
-        },
-        3923543307463110011: {
-            1457452471715694895: [
-                (
-                    contents: {
-                        "vie": "new dialogmmmm7tuyg",
-                    },
-                    affects: {},
-                ),
-            ],
-        },
-        9716668848554983429: {
-            13911259880336135218: [
-                (
-                    contents: {
-                        "eng": "new dialogmmmm",
-                        "vie": "new dialogmmmm7tuyg",
+                        "eng": "Good afternoon!",
                     },
                     affects: {
-                        9716668848554983429: 13911259880336135218,
+                        9475405830538739162: 7173758463185314716,
+                    },
+                ),
+                (
+                    contents: {
+                        "eng": "Good night!",
+                    },
+                    affects: {
+                        9475405830538739162: 3052536066844523070,
+                    },
+                ),
+            ],
+            5329734663086653281: [
+                (
+                    contents: {
+                        "eng": "Hey! Chill! Chill!",
+                    },
+                    affects: {
+                        10001827889560403898: 7115102065732828171,
                     },
                 ),
             ],
         },
-        17598875771229354592: {},
-    },
-    class_name_map: {
-        9716668848554983429: "New classasdasdasd",
-        3923543307463110011: "New class",
-        16570138400533011457: "New classasdasd",
-    },
-    state_name_map: {
-        1457452471715694895: "New statead",
-        13911259880336135218: "New state",
+        9475405830538739162: {
+            3052536066844523070: [
+                (
+                    contents: {
+                        "eng": "It\'s afternoon already.",
+                    },
+                    affects: {},
+                ),
+            ],
+            7173758463185314716: [
+                (
+                    contents: {
+                        "eng": "Good afternoon!",
+                    },
+                    affects: {},
+                ),
+            ],
+        },
+        10001827889560403898: {
+            7115102065732828171: [
+                (
+                    contents: {
+                        "eng": "What the hell is even that?",
+                    },
+                    affects: {},
+                ),
+            ],
+            7173758463185314716: [
+                (
+                    contents: {
+                        "eng": "Grrr.....",
+                    },
+                    affects: {
+                        2087775913480848054: 5329734663086653281,
+                    },
+                ),
+            ],
+        },
     },
 )
