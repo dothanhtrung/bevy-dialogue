@@ -1,9 +1,8 @@
 use bevy::prelude::*;
 use bevy_dialogue::{
     DialogueComponent,
-    DialoguePluginAnyState,
+    DialoguePlugin,
     DialogueRes,
-    DialogueStateChanged,
     NextDialogue,
     RequestDialogue,
 };
@@ -11,29 +10,35 @@ use bevy_dialogue::{
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(DialoguePluginAnyState::any())
+        // Add the plugin
+        .add_plugins(DialoguePlugin)
         .add_systems(Startup, startup)
         .add_systems(Update, click_to_talk)
         .run();
 }
 
 fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_res: ResMut<DialogueRes>) {
+    // Plugin can look up for {{hero_name}} and replace it by your value
+    dialogue_res.variables.insert("hero_name".to_string(), "Sam".to_string());
+
+    // Load the dialogue file. Multiple files are supported.
     dialogue_res.dialogues.push(asset_server.load("dialogue_sample.ron"));
-    commands.spawn(Camera2d);
+
+
+    // Add `DialogueComponent` to your entity with specific class_id and state_id
+    commands
+        .spawn(DialogueComponent::new(6499684068401589489, 6881880072390552419))
+        .observe(print_dialogue);
 
     commands
         .spawn(Node {
-            align_self: AlignSelf::End,
+            align_self: AlignSelf::Center,
             justify_self: JustifySelf::Center,
             width: Val::Percent(90.),
             ..default()
         })
         .with_child(Text::new(""));
-
-    // The id is hashed from string. You can get this id by `xxh3_64(string_value)`.
-    commands
-        .spawn(DialogueComponent::new(2087775913480848054, 7173758463185314716))
-        .observe(print_dialogue);
+    commands.spawn(Camera2d);
 }
 
 fn click_to_talk(
@@ -43,22 +48,22 @@ fn click_to_talk(
 ) {
     for entity in npc.iter() {
         if mouse_btn.just_pressed(MouseButton::Left) {
-            commands.trigger(RequestDialogue::new(entity));
-        } else if mouse_btn.just_pressed(MouseButton::Right) {
-            commands.trigger(DialogueStateChanged {
-                entity,
-                next_state: None,
-            });
+            // Request random dialogues for character.
             commands.trigger(RequestDialogue::new(entity));
         }
     }
 }
 
+// Character dialogue will be returned through event `NextDialogue`
 fn print_dialogue(trigger: On<NextDialogue>, mut query: Query<&mut Text>) {
-    // TODO: Improve example
     for mut text in query.iter_mut() {
-        if let Some((_, content)) = trigger.dialogues[0].contents.first_key_value() {
-            **text = content.clone();
-        }
+        let Some(dialogue) = trigger.dialogues.first() else {
+            return;
+        };
+        let Some((_, content)) = dialogue.contents.first_key_value() else {
+            return;
+        };
+
+        **text = content.clone();
     }
 }

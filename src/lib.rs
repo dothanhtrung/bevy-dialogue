@@ -16,7 +16,6 @@ use bevy::{
         Res,
         Resource,
         Single,
-        States,
         TypePath,
         With,
     },
@@ -42,39 +41,9 @@ use std::collections::{
 };
 
 #[derive(Default)]
-pub struct DialoguePlugin<T>
-where
-    T: States,
-{
-    pub states: Vec<T>,
-}
+pub struct DialoguePlugin;
 
-impl<T> DialoguePlugin<T>
-where
-    T: States,
-{
-    pub fn new(states: Vec<T>) -> Self {
-        Self { states }
-    }
-    pub fn any() -> Self {
-        Self::new(Vec::new())
-    }
-}
-
-#[derive(States, Clone, Debug, Hash, Eq, PartialEq)]
-pub enum DummyState {}
-
-pub struct DialoguePluginAnyState;
-
-impl DialoguePluginAnyState {
-    pub fn any() -> DialoguePlugin<DummyState> {
-        DialoguePlugin::new(Vec::new())
-    }
-}
-
-impl<T> Plugin for DialoguePlugin<T>
-where
-    T: States,
+impl Plugin for DialoguePlugin
 {
     fn build(&self, app: &mut App) {
         if !app.is_plugin_added::<EntropyPlugin<WyRand>>() {
@@ -136,7 +105,7 @@ pub enum RequestType {
     /// Return a random dialogue of current state
     Random,
     /// Return all dialogues of current state
-    Normal,
+    All,
 }
 
 #[derive(EntityEvent)]
@@ -220,7 +189,7 @@ fn find_dialogue(
 
                     let mut ret_dialogues = Vec::new();
                     match trigger.request_type {
-                        RequestType::Normal => {
+                        RequestType::All => {
                             if let Some(index) = trigger.request_index
                                 && let Some(dialog) = dialogues.get(index)
                             {
