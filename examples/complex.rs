@@ -1,5 +1,7 @@
 use bevy::{
-    platform::collections::HashMap,
+    color::palettes::css::{
+        GRAY,
+    },
     prelude::*,
 };
 use bevy_dialogue::{
@@ -10,14 +12,12 @@ use bevy_dialogue::{
     RequestDialogue,
     RequestType,
 };
-use xxhash_rust::xxh3::xxh3_64;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         // Add the plugin
         .add_plugins(DialoguePlugin)
-        .insert_resource(IdMap::default())
         .add_systems(Startup, startup)
         .run();
 }
@@ -31,57 +31,50 @@ struct Villager;
 #[derive(Component)]
 struct Monster;
 
-#[derive(Resource, Default, DerefMut, Deref)]
-struct IdMap(HashMap<String, u64>);
-
-// In this example, the id is hashed from string using xxh3_64, but you do not need to do the same.
-// Any unique u64 values are okay.
-impl IdMap {
-    fn get_id(&mut self, value: &str) -> u64 {
-        let lower = value.to_lowercase();
-        if let Some(id) = self.get(lower.as_str()) {
-            *id
-        } else {
-            let id = xxh3_64(lower.as_bytes());
-            self.insert(lower, id);
-            id
-        }
-    }
+#[repr(u64)]
+enum CharacterClass {
+    Hero = 1,
+    Villager,
+    Monster,
 }
 
-fn startup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut dialogue_res: ResMut<DialogueRes>,
-    mut id_map: ResMut<IdMap>,
-) {
+#[repr(u64)]
+enum CharacterState {
+    Normal = 10,
+}
+
+fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_res: ResMut<DialogueRes>) {
+    // Plugin can look up for {{variable}} and replace it by your value
     dialogue_res
         .variables
         .insert("hero_name".to_string(), "Sam".to_string());
+
+    // Load the dialogue file. Multiple files are supported.
     dialogue_res.dialogues.push(asset_server.load("dialogue_sample.ron"));
 
+    // Spawn entity with DialogueComponent and listen the dialogue event on it
     commands
         .spawn((
             Hero,
-            DialogueComponent::new(id_map.get_id("Hero"), id_map.get_id("Normal")),
+            DialogueComponent::new(CharacterClass::Hero as u64, CharacterState::Normal as u64),
         ))
         .observe(print_hero_dialogue);
 
     commands
         .spawn((
             Villager,
-            DialogueComponent::new(id_map.get_id("Villager"), id_map.get_id("Normal")),
+            DialogueComponent::new(CharacterClass::Villager as u64, CharacterState::Normal as u64),
         ))
         .observe(print_villager_dialogue);
 
     commands
         .spawn((
             Monster,
-            DialogueComponent::new(id_map.get_id("Monster"), id_map.get_id("Normal")),
+            DialogueComponent::new(CharacterClass::Monster as u64, CharacterState::Normal as u64),
         ))
         .observe(print_monster_dialogue);
 
-    // ---- Just UI, can be ignored -----
+    // ----- UI -----
     commands
         .spawn(Node {
             flex_direction: FlexDirection::Row,
@@ -90,6 +83,7 @@ fn startup(
             ..default()
         })
         .with_children(|parent| {
+            // UI for hero
             parent
                 .spawn(Node {
                     height: Val::Percent(100.),
@@ -100,13 +94,41 @@ fn startup(
                 })
                 .with_children(|parent| {
                     parent.spawn(Text::new("Hero"));
-                    parent.spawn((Button, Text::new("Talk to Villager"))).observe(talk);
                     parent
-                        .spawn((Button, Text::new("Talk to Monster")))
+                        .spawn((
+                            Button,
+                            BackgroundColor(GRAY.into()),
+                            Node {
+                                border_radius: BorderRadius::all(Val::Px(5.)),
+                                margin: UiRect::top(Val::Percent(5.)),
+                                ..default()
+                            },
+                            Text::new("Talk to Villager"),
+                        ))
+                        .observe(talk);
+                    parent
+                        .spawn((
+                            Button,
+                            BackgroundColor(GRAY.into()),
+                            Node {
+                                border_radius: BorderRadius::all(Val::Px(5.)),
+                                margin: UiRect::top(Val::Percent(5.)),
+                                ..default()
+                            },
+                            Text::new("Talk to Monster"),
+                        ))
                         .observe(talk_to_monster);
-                    parent.spawn((Hero, Text::default()));
+                    parent.spawn((
+                        Hero,
+                        Node {
+                            margin: UiRect::top(Val::Percent(10.)),
+                            ..default()
+                        },
+                        Text::default(),
+                    ));
                 });
 
+            // UI for villager
             parent
                 .spawn(Node {
                     height: Val::Percent(100.),
@@ -116,9 +138,17 @@ fn startup(
                 })
                 .with_children(|parent| {
                     parent.spawn(Text::new("Villager"));
-                    parent.spawn((Villager, Text::default()));
+                    parent.spawn((
+                        Villager,
+                        Node {
+                            margin: UiRect::top(Val::Percent(10.)),
+                            ..default()
+                        },
+                        Text::default(),
+                    ));
                 });
 
+            // UI for monster
             parent
                 .spawn(Node {
                     height: Val::Percent(100.),
@@ -128,7 +158,14 @@ fn startup(
                 })
                 .with_children(|parent| {
                     parent.spawn(Text::new("Monster"));
-                    parent.spawn((Monster, Text::default()));
+                    parent.spawn((
+                        Monster,
+                        Node {
+                            margin: UiRect::top(Val::Percent(10.)),
+                            ..default()
+                        },
+                        Text::default(),
+                    ));
                 });
         });
 
@@ -161,16 +198,20 @@ fn talk_to_monster(
 fn talk(
     _: On<Pointer<Click>>,
     mut commands: Commands,
-    mut hero: Single<(Entity, &mut DialogueComponent), With<Hero>>,
-    villager: Single<Entity, With<Villager>>,
-    mut id_map: ResMut<IdMap>,
+    hero: Single<(Entity, &mut DialogueComponent), With<Hero>>,
+    villager: Single<Entity, (With<Villager>, With<DialogueComponent>)>,
 ) {
     let (hero_entity, mut dialogue_component) = hero.into_inner();
-
-    dialogue_component.state = id_map.get_id("Normal");
+    // Reset hero state to normal
+    dialogue_component.state = CharacterState::Normal as u64;
 
     // Request dialog for Hero
-    // commands.trigger(RequestDialogue::new(hero_entity));
+    commands.trigger(RequestDialogue {
+        entity: hero_entity,
+        to: Some(*villager),
+        request_type: RequestType::Random,
+        request_index: None,
+    });
 
     // Request dialog for Villager
     commands.trigger(RequestDialogue {

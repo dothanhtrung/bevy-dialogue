@@ -26,7 +26,7 @@ use bevy_rand::prelude::{
     WyRand,
 };
 use bevy_support_misc::{
-    bincode_asset_loader::BincodeLoaderPlugin,
+    bin_asset_loader::BinLoaderPlugin,
     ron_asset_loader::RonLoaderPlugin,
 };
 use isolang::Language;
@@ -51,7 +51,7 @@ impl Plugin for DialoguePlugin
         };
         app.add_plugins((
             RonLoaderPlugin::<DialogueAsset>::default(),
-            BincodeLoaderPlugin::<DialogueAsset>::default(),
+            BinLoaderPlugin::<DialogueAsset>::default(),
         ))
         .init_asset::<DialogueAsset>()
         .insert_resource(DialogueRes::default())
