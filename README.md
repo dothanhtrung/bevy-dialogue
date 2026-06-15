@@ -10,9 +10,42 @@ Bevy plugin for load and retrieve characters dialogues.
 
 The dialogues can be create and edit with GUI tool [Dialogue Editor](https://github.com/dothanhtrung/dialogue-editor)
 
+Asset Syntax
+------------
+
+```ron
+(
+    dialogues: {
+        <class_id>: {
+            <state_id>: [
+                (
+                    contents: {
+                        "<language code>": "Dialogue content. {{variable}} is supported",
+                    },
+                    affects: {
+                        <target_class_id>: <target_state_id>,
+                    },
+                ),
+            ],
+        },
+    },
+)
+```
+
+* `class_id`: `u64`. The character class id. For example: Villager, Hero, etc. should have unique id.
+* `state_id`: `u64`. The character state id. For example: Idle, Arguing, Cheering, etc. should have unique id.
+* `language_code`: `String`. 3 character language code by ISO 639-3. For example: `eng`, `spa`, etc.
+* `affects`: This mean the state of entity with `target_class_id` will be change to `target_state_id` after this dialog.
+
+
+Dialogue asset can be text file (RON format) or binary file. It is recommended to use
+[Dialogue Editor](https://github.com/dothanhtrung/dialogue-editor) for creating and exporting your
+dialogue asset.
+
 Quickstart
 ----------
 
+Please see [examples](./examples).
 
 License
 -------

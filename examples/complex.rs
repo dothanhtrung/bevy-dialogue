@@ -40,7 +40,7 @@ enum CharacterClass {
 
 #[repr(u64)]
 enum CharacterState {
-    Normal = 10,
+    Normal = 1,
 }
 
 fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_res: ResMut<DialogueRes>) {

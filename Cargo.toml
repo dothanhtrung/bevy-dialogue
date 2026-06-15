@@ -12,7 +12,7 @@ categories = ["game-development"]
 
 [dependencies]
 bevy = { version = ">=0.18", features = ["bevy_state", "bevy_asset"], default-features = false }
-bevy_rand = { version = "0.14", default-features = false, features = ["wyrand"] }
+bevy_rand = { version = ">=0.14", default-features = false, features = ["wyrand"] }
 bevy_support_misc = { version = "0.8", default-features = false, features = ["ron_loader", "bin_loader"]}
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 ron = { version = "0.12", default-features = false }

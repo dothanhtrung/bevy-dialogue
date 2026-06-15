@@ -27,7 +27,7 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_
 
     // Add `DialogueComponent` to your entity with specific class_id and state_id
     commands
-        .spawn(DialogueComponent::new(6499684068401589489, 6881880072390552419))
+        .spawn(DialogueComponent::new(1, 1))
         .observe(print_dialogue);
 
     commands
