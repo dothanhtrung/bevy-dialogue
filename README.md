@@ -1,10 +1,17 @@
+<div align="center">
+
 bevy_dialogue
 =============
 
 [![crates.io](https://img.shields.io/crates/v/bevy_dialogue)](https://crates.io/crates/bevy_dialogue)
 [![docs.rs](https://docs.rs/bevy_dialogue/badge.svg)](https://docs.rs/bevy_dialogue)
-[![dependency status](https://deps.rs/repo/gitlab/245project/bevy-plugin/bevy-dialogue/status.svg)](https://deps.rs/repo/gitlab/245project/bevy-plugin/bevy-dialogue)
+[![dependency status](https://deps.rs/crate/bevy_dialogue/latest/status.svg)](https://deps.rs/crate/bevy_dialogue/latest)
 [![pipeline status](https://gitlab.com/245project/bevy-plugin/bevy-dialogue/badges/master/pipeline.svg)](https://gitlab.com/245project/bevy-plugin/bevy-dialogue/-/commits/master)
+
+[![Gitlab](https://img.shields.io/badge/gitlab-%23181717.svg?style=for-the-badge&logo=gitlab&logoColor=white)](https://gitlab.com/245project/bevy-plugin/bevy-dialogue)
+[![Github](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)](https://github.com/dothanhtrung/bevy-dialogue)
+
+</div>
 
 Bevy plugin for load and retrieve characters dialogues.
 
