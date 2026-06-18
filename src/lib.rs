@@ -1,4 +1,8 @@
 use bevy::{
+    ecs::message::{
+        Message,
+        MessageWriter,
+    },
     prelude::{
         App,
         Asset,
@@ -43,8 +47,7 @@ use std::collections::{
 #[derive(Default)]
 pub struct DialoguePlugin;
 
-impl Plugin for DialoguePlugin
-{
+impl Plugin for DialoguePlugin {
     fn build(&self, app: &mut App) {
         if !app.is_plugin_added::<EntropyPlugin<WyRand>>() {
             app.add_plugins(EntropyPlugin::<WyRand>::default());
@@ -55,10 +58,15 @@ impl Plugin for DialoguePlugin
         ))
         .init_asset::<DialogueAsset>()
         .insert_resource(DialogueRes::default())
+        .add_message::<DialogueTrigger>()
         .add_observer(find_dialogue)
         .add_observer(update_state);
     }
 }
+
+// FIXME: Message or EntityEvent
+#[derive(Message)]
+pub struct DialogueTrigger(pub u64);
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Dialogue {
@@ -67,6 +75,8 @@ pub struct Dialogue {
     /// The class this dialogue will affect and the state that class will change to
     #[serde(default)]
     pub affects: BTreeMap<u64, u64>,
+    #[serde(default)]
+    pub events: Vec<u64>,
 }
 
 #[derive(Resource, Default)]
@@ -158,6 +168,7 @@ fn find_dialogue(
     dialogue_asset: Res<Assets<DialogueAsset>>,
     mut query: Query<&mut DialogueComponent>,
     mut rng: Single<&mut WyRand, With<GlobalRng>>,
+    mut message: MessageWriter<DialogueTrigger>,
 ) {
     let Ok(character) = query.get(trigger.entity) else {
         return;
@@ -193,6 +204,10 @@ fn find_dialogue(
                             if let Some(index) = trigger.request_index
                                 && let Some(dialog) = dialogues.get(index)
                             {
+                                for event in dialog.events.iter() {
+                                    message.write(DialogueTrigger(*event));
+                                }
+
                                 let mut dialog = dialog.clone();
                                 for (_, content) in dialog.contents.iter_mut() {
                                     *content = replace_templates(content, &dialogue_res.variables)
@@ -202,12 +217,23 @@ fn find_dialogue(
                                     character.dialogue = index;
                                 }
                             } else {
+                                for dialog in dialogues.iter() {
+                                    for event in dialog.events.iter() {
+                                        message.write(DialogueTrigger(*event));
+                                    }
+                                }
+
                                 ret_dialogues = dialogues.clone();
                             }
                         }
                         RequestType::Random => {
                             let random_msg_idx = rng.random_range(0..dialogues.len());
                             let mut dialog = dialogues[random_msg_idx].clone();
+
+                            for event in dialog.events.iter() {
+                                message.write(DialogueTrigger(*event));
+                            }
+
                             for (_, content) in dialog.contents.iter_mut() {
                                 *content = replace_templates(content, &dialogue_res.variables)
                             }
