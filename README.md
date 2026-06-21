@@ -63,6 +63,15 @@ Please see [LICENSE](./LICENSE).
 Compatible Bevy Versions
 ------------------------
 
-| bevy | bevy_dialogue             |
-|------|---------------------------|
-| 0.18 | 0.0.1, branch `master`    |
+| bevy | bevy_dialogue |
+|------|---------------|
+| 0.19 | 0.2           |
+| 0.18 | 0.1           |
+
+---------
+
+<div align="center">
+
+![git_bevy-dialogue](https://count.getloli.com/@git_bevy-dialogue?name=git_bevy-dialogue&theme=random&padding=10&offset=0&align=top&scale=1&pixelated=1&darkmode=auto)
+
+</div>
