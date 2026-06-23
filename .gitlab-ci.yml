@@ -31,7 +31,7 @@ test:
   script:
     - cargo test --tests
     - cargo test --examples
-    - find . -mtime +30 -print -delete || true
+    - find . -mtime +30 -delete || true
   rules:
     - changes:
       - Cargo.toml

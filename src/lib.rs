@@ -58,15 +58,17 @@ impl Plugin for DialoguePlugin {
         ))
         .init_asset::<DialogueAsset>()
         .insert_resource(DialogueRes::default())
-        .add_message::<DialogueTrigger>()
         .add_observer(find_dialogue)
         .add_observer(update_state);
     }
 }
 
-// FIXME: Message or EntityEvent
-#[derive(Message)]
-pub struct DialogueTrigger(pub u64);
+/// Trigger when ONE specific dialogue is request, like with `RequestType::Random` or (`RequestType::All` but with `request_index`)
+#[derive(EntityEvent)]
+pub struct DialogueTrigger {
+    pub entity: Entity,
+    pub event_id: u64,
+}
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Dialogue {
@@ -168,7 +170,6 @@ fn find_dialogue(
     dialogue_asset: Res<Assets<DialogueAsset>>,
     mut query: Query<&mut DialogueComponent>,
     mut rng: Single<&mut WyRand, With<GlobalRng>>,
-    mut message: MessageWriter<DialogueTrigger>,
 ) {
     let Ok(character) = query.get(trigger.entity) else {
         return;
@@ -205,7 +206,10 @@ fn find_dialogue(
                                 && let Some(dialog) = dialogues.get(index)
                             {
                                 for event in dialog.events.iter() {
-                                    message.write(DialogueTrigger(*event));
+                                    commands.trigger(DialogueTrigger {
+                                        entity: trigger.entity,
+                                        event_id: *event,
+                                    });
                                 }
 
                                 let mut dialog = dialog.clone();
@@ -217,12 +221,6 @@ fn find_dialogue(
                                     character.dialogue = index;
                                 }
                             } else {
-                                for dialog in dialogues.iter() {
-                                    for event in dialog.events.iter() {
-                                        message.write(DialogueTrigger(*event));
-                                    }
-                                }
-
                                 ret_dialogues = dialogues.clone();
                             }
                         }
@@ -231,7 +229,10 @@ fn find_dialogue(
                             let mut dialog = dialogues[random_msg_idx].clone();
 
                             for event in dialog.events.iter() {
-                                message.write(DialogueTrigger(*event));
+                                commands.trigger(DialogueTrigger {
+                                    entity: trigger.entity,
+                                    event_id: *event,
+                                });
                             }
 
                             for (_, content) in dialog.contents.iter_mut() {
