@@ -8,6 +8,7 @@ use bevy_dialogue::{
     DialogueComponent,
     DialoguePlugin,
     DialogueRes,
+    DialogueTrigger,
     NextDialogue,
     RequestDialogue,
     RequestType,
@@ -41,6 +42,8 @@ enum CharacterClass {
 #[repr(u64)]
 enum CharacterState {
     Normal = 1,
+    Attack,
+    Disagree,
 }
 
 fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_res: ResMut<DialogueRes>) {
@@ -58,7 +61,8 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_
             Hero,
             DialogueComponent::new(CharacterClass::Hero as u64, CharacterState::Normal as u64),
         ))
-        .observe(print_hero_dialogue);
+        .observe(print_hero_dialogue)
+        .observe(event_trigger);
 
     commands
         .spawn((
@@ -75,6 +79,7 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_
         .observe(print_monster_dialogue);
 
     // ----- UI -----
+    // Can be ignored
     commands
         .spawn(Node {
             flex_direction: FlexDirection::Row,
@@ -105,7 +110,7 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_
                             },
                             Text::new("Talk to Villager"),
                         ))
-                        .observe(talk);
+                        .observe(talk_to_villager);
                     parent
                         .spawn((
                             Button,
@@ -172,6 +177,37 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_
     commands.spawn(Camera2d);
 }
 
+fn talk_to_villager(
+    _: On<Pointer<Click>>,
+    mut commands: Commands,
+    hero: Single<(Entity, &mut DialogueComponent), With<Hero>>,
+    villager: Single<Entity, (With<Villager>, With<DialogueComponent>)>,
+) {
+    let (hero_entity, mut dialogue_component) = hero.into_inner();
+    // Reset hero state to normal
+    dialogue_component.state = CharacterState::Normal as u64;
+
+    // Request dialog for Hero
+    commands.trigger(RequestDialogue {
+        entity: hero_entity,
+         // talk to specific villager. If the villager currently can affect to the hero, the hero state will change by that
+        to: Some(*villager),
+
+        // pick a random dialogue in the current state of Hero
+        request_type: RequestType::Random,
+        request_index: None,
+    });
+
+    // Request dialog for Villager
+    commands.trigger(RequestDialogue {
+        entity: *villager,
+        // talk to specific hero. If the
+        to: Some(hero_entity),
+        request_type: RequestType::Random,
+        request_index: None,
+    });
+}
+
 fn talk_to_monster(
     _: On<Pointer<Click>>,
     mut commands: Commands,
@@ -190,33 +226,6 @@ fn talk_to_monster(
     commands.trigger(RequestDialogue {
         entity: *monster,
         to: Some(*hero),
-        request_type: RequestType::Random,
-        request_index: None,
-    });
-}
-
-fn talk(
-    _: On<Pointer<Click>>,
-    mut commands: Commands,
-    hero: Single<(Entity, &mut DialogueComponent), With<Hero>>,
-    villager: Single<Entity, (With<Villager>, With<DialogueComponent>)>,
-) {
-    let (hero_entity, mut dialogue_component) = hero.into_inner();
-    // Reset hero state to normal
-    dialogue_component.state = CharacterState::Normal as u64;
-
-    // Request dialog for Hero
-    commands.trigger(RequestDialogue {
-        entity: hero_entity,
-        to: Some(*villager),
-        request_type: RequestType::Random,
-        request_index: None,
-    });
-
-    // Request dialog for Villager
-    commands.trigger(RequestDialogue {
-        entity: *villager,
-        to: Some(hero_entity),
         request_type: RequestType::Random,
         request_index: None,
     });
@@ -247,4 +256,9 @@ fn print_villager_dialogue(trigger: On<NextDialogue>, mut text: Single<&mut Text
         };
         ***text = content.clone();
     }
+}
+
+/// We can catch the event triggered by dialogue if any with `DialogueTrigger`
+fn event_trigger(trigger: On<DialogueTrigger>) {
+    info!("Dialogue trigger event {}", trigger.event_id);
 }

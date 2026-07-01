@@ -10,6 +10,9 @@
                         2: 3,
                         3: 2,
                     },
+                    events: [
+                        1,
+                    ],
                 ),
                 (
                     contents: {
@@ -19,6 +22,7 @@
                         2: 1,
                         3: 2,
                     },
+                    events: [],
                 ),
             ],
             2: [
@@ -29,24 +33,27 @@
                     affects: {
                         3: 3,
                     },
+                    events: [],
                 ),
             ],
         },
         2: {
-            3: [
-                (
-                    contents: {
-                        "eng": "It\'s afternoon already.",
-                    },
-                    affects: {},
-                ),
-            ],
             1: [
                 (
                     contents: {
                         "eng": "Good afternoon!",
                     },
                     affects: {},
+                    events: [],
+                ),
+            ],
+            3: [
+                (
+                    contents: {
+                        "eng": "It\'s afternoon already.",
+                    },
+                    affects: {},
+                    events: [],
                 ),
             ],
         },
@@ -55,14 +62,7 @@
                 (
                     contents: {},
                     affects: {},
-                ),
-            ],
-            3: [
-                (
-                    contents: {
-                        "eng": "What the hell is even that?",
-                    },
-                    affects: {},
+                    events: [],
                 ),
             ],
             2: [
@@ -73,6 +73,16 @@
                     affects: {
                         1: 2,
                     },
+                    events: [],
+                ),
+            ],
+            3: [
+                (
+                    contents: {
+                        "eng": "What the hell is even that?",
+                    },
+                    affects: {},
+                    events: [],
                 ),
             ],
         },
