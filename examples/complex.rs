@@ -190,12 +190,11 @@ fn talk_to_villager(
     // Request dialog for Hero
     commands.trigger(RequestDialogue {
         entity: hero_entity,
-         // talk to specific villager. If the villager currently can affect to the hero, the hero state will change by that
+        // talk to specific villager. If the villager currently can affect to the hero, the hero state will change by that
         to: Some(*villager),
-
         // pick a random dialogue in the current state of Hero
         request_type: RequestType::Random,
-        request_index: None,
+        request_lang: None,
     });
 
     // Request dialog for Villager
@@ -204,7 +203,7 @@ fn talk_to_villager(
         // talk to specific hero. If the
         to: Some(hero_entity),
         request_type: RequestType::Random,
-        request_index: None,
+        request_lang: None,
     });
 }
 
@@ -219,7 +218,7 @@ fn talk_to_monster(
         entity: *hero,
         to: Some(*monster),
         request_type: RequestType::Random,
-        request_index: None,
+        request_lang: None,
     });
 
     // Request dialog for monster
@@ -227,34 +226,25 @@ fn talk_to_monster(
         entity: *monster,
         to: Some(*hero),
         request_type: RequestType::Random,
-        request_index: None,
+        request_lang: None,
     });
 }
 
 fn print_hero_dialogue(trigger: On<NextDialogue>, mut text: Single<&mut Text, With<Hero>>) {
-    for dialogue in trigger.dialogues.iter() {
-        let Some((_lang, content)) = dialogue.contents.first_key_value() else {
-            continue;
-        };
-        ***text = content.clone();
+    if let Some(dialogue) = trigger.dialogues.first() {
+        ***text = dialogue.clone();
     }
 }
 
 fn print_monster_dialogue(trigger: On<NextDialogue>, mut text: Single<&mut Text, With<Monster>>) {
-    for dialogue in trigger.dialogues.iter() {
-        let Some((_lang, content)) = dialogue.contents.first_key_value() else {
-            continue;
-        };
-        ***text = content.clone();
+    if let Some(dialogue) = trigger.dialogues.first() {
+        ***text = dialogue.clone();
     }
 }
 
 fn print_villager_dialogue(trigger: On<NextDialogue>, mut text: Single<&mut Text, With<Villager>>) {
-    for dialogue in trigger.dialogues.iter() {
-        let Some((_lang, content)) = dialogue.contents.first_key_value() else {
-            continue;
-        };
-        ***text = content.clone();
+    if let Some(dialogue) = trigger.dialogues.first() {
+        ***text = dialogue.clone();
     }
 }
 

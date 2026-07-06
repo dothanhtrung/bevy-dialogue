@@ -19,16 +19,15 @@ fn main() {
 
 fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_res: ResMut<DialogueRes>) {
     // Plugin can look up for {{hero_name}} and replace it by your value
-    dialogue_res.variables.insert("hero_name".to_string(), "Sam".to_string());
+    dialogue_res
+        .variables
+        .insert("hero_name".to_string(), "Sam".to_string());
 
     // Load the dialogue file. Multiple files are supported.
     dialogue_res.dialogues.push(asset_server.load("dialogue_sample.ron"));
 
-
     // Add `DialogueComponent` to your entity with specific class_id and state_id
-    commands
-        .spawn(DialogueComponent::new(1, 1))
-        .observe(print_dialogue);
+    commands.spawn(DialogueComponent::new(1, 1)).observe(print_dialogue);
 
     commands
         .spawn(Node {
@@ -60,10 +59,7 @@ fn print_dialogue(trigger: On<NextDialogue>, mut query: Query<&mut Text>) {
         let Some(dialogue) = trigger.dialogues.first() else {
             return;
         };
-        let Some((_, content)) = dialogue.contents.first_key_value() else {
-            return;
-        };
 
-        **text = content.clone();
+        **text = dialogue.clone();
     }
 }

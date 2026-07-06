@@ -90,9 +90,14 @@ pub struct DialogueAsset {
 
 #[derive(Component, Default, Clone)]
 pub struct DialogueComponent {
+    /// Dialogue class id
     pub class: u64,
+    /// Dialogue state id
     pub state: u64,
+    /// Dialogue index
     pub dialogue: usize,
+    /// Default character language
+    pub default_lang: Option<Language>,
 }
 
 impl DialogueComponent {
@@ -101,6 +106,7 @@ impl DialogueComponent {
             class,
             state,
             dialogue: 0,
+            default_lang: None,
         }
     }
 }
@@ -112,6 +118,7 @@ pub enum RequestType {
     Random,
     /// Return all dialogues of current state
     All,
+    One(usize),
 }
 
 #[derive(EntityEvent)]
@@ -121,8 +128,8 @@ pub struct RequestDialogue {
     /// The target whom character talk to
     pub to: Option<Entity>,
     pub request_type: RequestType,
-    /// Request exactly a dialogue by index. This is often used when select choice
-    pub request_index: Option<usize>,
+    /// Temporary override component default language
+    pub request_lang: Option<Language>,
 }
 
 impl RequestDialogue {
@@ -131,7 +138,7 @@ impl RequestDialogue {
             entity,
             to: None,
             request_type: RequestType::default(),
-            request_index: None,
+            request_lang: None,
         }
     }
 
@@ -140,7 +147,7 @@ impl RequestDialogue {
             entity,
             to: Some(to),
             request_type: RequestType::default(),
-            request_index: None,
+            request_lang: None,
         }
     }
 }
@@ -148,7 +155,7 @@ impl RequestDialogue {
 #[derive(EntityEvent, Clone)]
 pub struct NextDialogue {
     pub entity: Entity,
-    pub dialogues: Vec<Dialogue>,
+    pub dialogues: Vec<String>,
 }
 
 #[derive(Event)]
@@ -188,6 +195,12 @@ fn find_dialogue(
         if let Some(states) = dialogue_asset.dialogues.get(&character.class) {
             let character_state = affect_state.unwrap_or(character.state);
             if let Some(dialogues) = states.get(&character_state) {
+                let request_lang = if trigger.request_lang.is_some() {
+                    trigger.request_lang
+                } else {
+                    if character.default_lang.is_some() { character.default_lang } else { None }
+                };
+
                 if !dialogues.is_empty() {
                     if let Ok(mut character) = query.get_mut(trigger.entity) {
                         character.state = character_state;
@@ -195,10 +208,8 @@ fn find_dialogue(
 
                     let mut ret_dialogues = Vec::new();
                     match trigger.request_type {
-                        RequestType::All => {
-                            if let Some(index) = trigger.request_index
-                                && let Some(dialog) = dialogues.get(index)
-                            {
+                        RequestType::One(index) => {
+                            if let Some(dialog) = dialogues.get(index) {
                                 for event in dialog.events.iter() {
                                     commands.trigger(DialogueTrigger {
                                         entity: trigger.entity,
@@ -206,16 +217,33 @@ fn find_dialogue(
                                     });
                                 }
 
-                                let mut dialog = dialog.clone();
-                                for (_, content) in dialog.contents.iter_mut() {
-                                    *content = replace_templates(content, &dialogue_res.variables)
+                                for (lang, content) in dialog.contents.iter() {
+                                    if let Some(request_lang) = request_lang {
+                                        if *lang != request_lang {
+                                            continue;
+                                        }
+                                    }
+                                    let content = replace_templates(content, &dialogue_res.variables);
+                                    ret_dialogues.push(content);
+                                    break;
                                 }
-                                ret_dialogues.push(dialog);
                                 if let Ok(mut character) = query.get_mut(trigger.entity) {
                                     character.dialogue = index;
                                 }
-                            } else {
-                                ret_dialogues = dialogues.clone();
+                            }
+                        }
+                        RequestType::All => {
+                            for dialog in dialogues.iter() {
+                                for (lang, content) in dialog.contents.iter() {
+                                    if let Some(request_lang) = request_lang {
+                                        if *lang != request_lang {
+                                            continue;
+                                        }
+                                    }
+                                    let content = replace_templates(content, &dialogue_res.variables);
+                                    ret_dialogues.push(content);
+                                    break;
+                                }
                             }
                         }
                         RequestType::Random => {
@@ -229,11 +257,16 @@ fn find_dialogue(
                                 });
                             }
 
-                            for (_, content) in dialog.contents.iter_mut() {
-                                *content = replace_templates(content, &dialogue_res.variables)
+                            for (lang, content) in dialog.contents.iter() {
+                                if let Some(request_lang) = request_lang {
+                                    if *lang != request_lang {
+                                        continue;
+                                    }
+                                }
+                                let content = replace_templates(content, &dialogue_res.variables);
+                                ret_dialogues.push(content);
+                                break;
                             }
-
-                            ret_dialogues.push(dialog);
 
                             if let Ok(mut character) = query.get_mut(trigger.entity) {
                                 character.dialogue = random_msg_idx;
@@ -247,6 +280,8 @@ fn find_dialogue(
                     };
                     commands.trigger(res);
                 }
+
+                // Dialogue found. No need to check other assets
                 break;
             }
         }
