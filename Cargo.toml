@@ -1,12 +1,12 @@
 [package]
 name = "bevy_dialogue"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Trung Do <dothanhtrung@pm.me>"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://gitlab.com/245project/bevy-plugin/bevy-dialogue"
 keywords = ["bevy"]
-description = "Bevy plugin for character dialog"
+description = "Bevy plugin for character dialogue"
 exclude = ["assets", "examples", "tests", ".cargo", "rust-toolchain.toml"]
 categories = ["game-development"]
 

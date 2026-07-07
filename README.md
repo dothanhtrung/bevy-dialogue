@@ -13,12 +13,13 @@ bevy_dialogue
 
 </div>
 
-Bevy plugin for load and retrieve characters dialogues.
-
-The dialogues can be create and edit with GUI tool [Dialogue Editor](https://github.com/dothanhtrung/dialogue-editor)
+Bevy plugin for load and retrieve characters dialogues. (**_UI not included_**)
 
 Asset Syntax
 ------------
+
+> Dialogue asset can be **text file** (RON format) or **binary file**. There is a GUI tool [Dialogue Editor](https://gitlab.com/kimtinh/dialogue-editor)
+> for creating and exporting dialogue asset.
 
 ```ron
 (
@@ -43,18 +44,121 @@ Asset Syntax
 * `class_id`: `u64`. The character class id. For example: Villager, Hero, etc. should have unique id.
 * `state_id`: `u64`. The character state id. For example: Idle, Arguing, Cheering, etc. should have unique id.
 * `language_code`: `String`. 3 character language code by ISO 639-3. For example: `eng`, `spa`, etc.
-* `affects`: This mean the state of entity with `target_class_id` will be change to `target_state_id` after this dialog.
+* `affects`: This mean the state of entity with `target_class_id` will be change to `target_state_id` after this dialogue.
 * `events`: Array of event id. They will be triggered by plugin if the dialogue is used.
 
+Usage
+-----
 
-Dialogue asset can be text file (RON format) or binary file. There is a WIP tool
-[Dialogue Editor](https://github.com/dothanhtrung/dialogue-editor) for creating and exporting your
-dialogue asset.
+Please see [examples](./examples) for more detail.
 
-Quickstart
-----------
+### Plugin
 
-Please see [examples](./examples).
+```rust
+let mut = App::new();
+app.add_plugins(DialoguePlugin);
+```
+
+### Load asset
+
+Multiple dialogue assets can be loaded and pushed to `DialogueRes`:
+
+```rust
+fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_res: ResMut<DialogueRes>) {
+    dialogue_res.dialogues.push(asset_server.load("dialogue_stage1.ron"));
+    dialogue_res.dialogues.push(asset_server.load("dialogue_stage2.bin"));
+}
+```
+
+### Dialogue variables
+
+Variables can be put in asset in syntax `{{your_variable}}`. Their value can be defined in `DialogueRes`.
+
+```rust
+fn startup(mut dialogue_res: ResMut<DialogueRes>) {
+    // Plugin will look up for variable {{hero_name}} and replace it
+    dialogue_res
+        .variables
+        .insert("hero_name".to_string(), "Sam".to_string());
+}
+```
+
+### Spawn
+
+Spawn entity with component `DialogueComponent`.
+
+```rust
+#[repr(u64)]
+enum CharacterClass {
+    Hero = 1,
+    Villager,
+    Monster,
+}
+
+#[repr(u64)]
+enum CharacterState {
+    Normal = 1,
+    Attack,
+    Disagree,
+}
+
+fn spawn(mut commands: Commands) {
+    commands.spawn(DialogueComponent::new(
+        CharacterClass::Hero as u64,
+        CharacterState::Normal as u64)
+    )
+    .observe(dialogue_available) // Listen for `DialogueAvailable` event
+    .observe(dialogue_event)     // One dialogue can trigger a specific event through `DialogueTrigger`
+    ;
+}
+```
+
+### Get dialogue
+
+To get a dialogue, you need to send the request first:
+```rust
+commands.trigger(RequestDialogue::new(hero_entity));
+```
+
+Then, the dialogue will be returned through `DialogueAvailable` event:
+```rust
+fn dialogue_available(trigger: On<DialogueAvailable>) {
+    for dialogue in trigger.dialogues.iter() {
+        info!(dialogue);
+    }
+}
+```
+
+### Talk to
+
+When request dialogue, you can specify which one the character is talking to:
+
+```rust
+commands.trigger(RequestDialogue::new(hero_entity).talk_to(monster_entity));
+```
+
+### Event
+
+The event id in asset can be listen through `DialogueTrigger`
+
+```rust
+fn event_trigger(trigger: On<DialogueTrigger>) {
+    info!("Dialogue trigger event {}", trigger.event_id);
+}
+```
+
+### Choice
+
+All dialogues in a same state of character can be treated as choices:
+```rust
+commands.trigger(RequestDialogue::new(hero_entity).with_type(RequestType::All));
+```
+
+Then a choice can be set by request again with the dialogue index. For example, if we select the first choice,
+send a request with index `0`:
+```rust
+commands. trigger(RequestDialogue::new(hero_entity).with_type(RequestType::One(0)));
+```
 
 License
 -------
@@ -67,7 +171,7 @@ Compatible Bevy Versions
 
 | bevy | bevy_dialogue |
 |------|---------------|
-| 0.19 | 0.2           |
+| 0.19 | 0.2-0.3       |
 | 0.18 | 0.1           |
 
 ---------
