@@ -248,7 +248,7 @@ fn find_dialogue(
                         }
                         RequestType::Random => {
                             let random_msg_idx = rng.random_range(0..dialogues.len());
-                            let mut dialog = dialogues[random_msg_idx].clone();
+                            let dialog = dialogues[random_msg_idx].clone();
 
                             for event in dialog.events.iter() {
                                 commands.trigger(DialogueTrigger {
