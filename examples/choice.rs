@@ -5,10 +5,11 @@ use bevy::{
     prelude::*,
 };
 use bevy_dialogue::{
-    DialogueComponent,
-    DialoguePlugin,
-    DialogueRes,
     DialogueAvailable,
+    DialogueComponent,
+    DialogueConfig,
+    DialogueHandles,
+    DialoguePlugin,
     RequestDialogue,
     RequestType,
 };
@@ -42,11 +43,14 @@ enum CharacterState {
 #[derive(Component)]
 struct Choice(usize);
 
-fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_res: ResMut<DialogueRes>) {
-    dialogue_res
-        .variables
-        .insert("hero_name".to_string(), "Sam".to_string());
-    dialogue_res.dialogues.push(asset_server.load("dialogue_sample.ron"));
+fn startup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut config: ResMut<DialogueConfig>,
+    mut handles: ResMut<DialogueHandles>,
+) {
+    config.variables.insert("hero_name".to_string(), "Sam".to_string());
+    handles.push(asset_server.load("dialogue_sample.ron"));
 
     // Spawn entity with DialogueComponent and listen the dialogue event on it
     commands

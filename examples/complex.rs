@@ -5,11 +5,12 @@ use bevy::{
     prelude::*,
 };
 use bevy_dialogue::{
-    DialogueComponent,
-    DialoguePlugin,
-    DialogueRes,
-    DialogueTrigger,
     DialogueAvailable,
+    DialogueComponent,
+    DialogueConfig,
+    DialogueHandles,
+    DialoguePlugin,
+    DialogueTrigger,
     RequestDialogue,
     RequestType,
 };
@@ -45,18 +46,21 @@ enum CharacterState {
     Normal = 1,
 }
 
-fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_res: ResMut<DialogueRes>) {
+fn startup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut config: ResMut<DialogueConfig>,
+    mut handles: ResMut<DialogueHandles>,
+) {
     // Plugin can look up for {{variable}} and replace it by your value
-    dialogue_res
-        .variables
-        .insert("hero_name".to_string(), "Sam".to_string());
+    config.variables.insert("hero_name".to_string(), "Sam".to_string());
 
     // Load the dialogue file. Multiple files are supported.
-    dialogue_res.dialogues.push(asset_server.load("dialogue_sample.ron"));
+    handles.push(asset_server.load("dialogue_sample.ron"));
 
     // Dialogue language can be set through property `global_lang`.
     // This can be overriden in DialogueComponent or RequestDialogue.
-    dialogue_res.global_lang = Some(Language::Eng);
+    config.global_lang = Some(Language::Eng);
 
     // Spawn entity with DialogueComponent and listen the dialogue event on it
     commands

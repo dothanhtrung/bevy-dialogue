@@ -9,6 +9,8 @@ use bevy::prelude::{
     Assets,
     Commands,
     Component,
+    Deref,
+    DerefMut,
     Entity,
     EntityEvent,
     Event,
@@ -56,7 +58,8 @@ impl Plugin for DialoguePlugin {
             BinLoaderPlugin::<DialogueAsset>::default(),
         ))
         .init_asset::<DialogueAsset>()
-        .insert_resource(DialogueRes::default())
+        .insert_resource(DialogueHandles::default())
+        .insert_resource(DialogueConfig::default())
         .add_observer(find_dialogue)
         .add_observer(update_state);
     }
@@ -82,18 +85,19 @@ pub struct Dialogue {
     /// The event ids that this dialogue can trigger
     #[serde(default)]
     pub events: Vec<u64>,
-
     // TODO: Condition
     // #[serde(default)]
     // pub conditions: HashSet<u64>,
 }
 
+/// Multiple loaded asset handles are stored in this.
+/// The plugin will scan through all files and stop right after found the desired dialogue.
+#[derive(Resource, Default, Deref, DerefMut)]
+pub struct DialogueHandles(pub Vec<Handle<DialogueAsset>>);
+
 // TODO: Move `variables` and `global_lang` to separate Resource which supports serialize for save game
-#[derive(Resource, Default)]
-pub struct DialogueRes {
-    /// Multiple loaded asset handles are stored in this.
-    /// The plugin will scan through all files and stop right after found the desired dialogue.
-    pub dialogues: Vec<Handle<DialogueAsset>>,
+#[derive(Resource, Default, Serialize, Deserialize)]
+pub struct DialogueConfig {
     /// Variable to be replaced in the dialogue
     pub variables: HashMap<String, String>,
     /// Language of all characters. Can be overriden by `DialogueComponent` or `RequestDialogue`
@@ -201,7 +205,8 @@ pub struct DialogueStateChanged {
 fn find_dialogue(
     trigger: On<RequestDialogue>,
     mut commands: Commands,
-    dialogue_res: Res<DialogueRes>,
+    dialogue_config: Res<DialogueConfig>,
+    dialogue_handles: Res<DialogueHandles>,
     dialogue_asset: Res<Assets<DialogueAsset>>,
     mut query: Query<&mut DialogueComponent>,
     mut rng: Single<&mut WyRand, With<GlobalRng>>,
@@ -209,7 +214,7 @@ fn find_dialogue(
     let Ok(character) = query.get(trigger.entity) else {
         return;
     };
-    for handle in dialogue_res.dialogues.iter() {
+    for handle in dialogue_handles.iter() {
         let Some(dialogue_asset) = dialogue_asset.get(handle) else {
             continue;
         };
@@ -235,7 +240,7 @@ fn find_dialogue(
                     if character.default_lang.is_some() {
                         character.default_lang
                     } else {
-                        if dialogue_res.global_lang.is_some() { dialogue_res.global_lang } else { None }
+                        if dialogue_config.global_lang.is_some() { dialogue_config.global_lang } else { None }
                     }
                 };
 
@@ -261,7 +266,7 @@ fn find_dialogue(
                                             continue;
                                         }
                                     }
-                                    let content = replace_templates(content, &dialogue_res.variables);
+                                    let content = replace_templates(content, &dialogue_config.variables);
                                     ret_dialogues.push(content);
                                     break;
                                 }
@@ -278,7 +283,7 @@ fn find_dialogue(
                                             continue;
                                         }
                                     }
-                                    let content = replace_templates(content, &dialogue_res.variables);
+                                    let content = replace_templates(content, &dialogue_config.variables);
                                     ret_dialogues.push(content);
                                     break;
                                 }
@@ -301,7 +306,7 @@ fn find_dialogue(
                                         continue;
                                     }
                                 }
-                                let content = replace_templates(content, &dialogue_res.variables);
+                                let content = replace_templates(content, &dialogue_config.variables);
                                 ret_dialogues.push(content);
                                 break;
                             }
@@ -328,11 +333,11 @@ fn find_dialogue(
 
 fn update_state(
     trigger: On<DialogueStateChanged>,
-    dialogue_res: Res<DialogueRes>,
+    dialogue_handles: Res<DialogueHandles>,
     dialogue_asset: Res<Assets<DialogueAsset>>,
     mut query: Query<&mut DialogueComponent>,
 ) {
-    for handle in dialogue_res.dialogues.iter() {
+    for handle in dialogue_handles.iter() {
         let Some(dialogue_asset) = dialogue_asset.get(handle) else {
             continue;
         };

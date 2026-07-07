@@ -1,9 +1,10 @@
 use bevy::prelude::*;
 use bevy_dialogue::{
-    DialogueComponent,
-    DialoguePlugin,
-    DialogueRes,
     DialogueAvailable,
+    DialogueComponent,
+    DialogueConfig,
+    DialogueHandles,
+    DialoguePlugin,
     RequestDialogue,
 };
 
@@ -17,14 +18,17 @@ fn main() {
         .run();
 }
 
-fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_res: ResMut<DialogueRes>) {
+fn startup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut config: ResMut<DialogueConfig>,
+    mut handles: ResMut<DialogueHandles>,
+) {
     // Plugin can look up for {{hero_name}} and replace it by your value
-    dialogue_res
-        .variables
-        .insert("hero_name".to_string(), "Sam".to_string());
+    config.variables.insert("hero_name".to_string(), "Sam".to_string());
 
     // Load the dialogue file. Multiple files are supported.
-    dialogue_res.dialogues.push(asset_server.load("dialogue_sample.ron"));
+    handles.push(asset_server.load("dialogue_sample.ron"));
 
     // Add `DialogueComponent` to your entity with specific class_id and state_id
     commands.spawn(DialogueComponent::new(1, 1)).observe(print_dialogue);

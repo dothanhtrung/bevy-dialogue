@@ -63,23 +63,23 @@ app.add_plugins(DialoguePlugin);
 
 ### Load asset
 
-Multiple dialogue assets can be loaded and pushed to `DialogueRes`:
+Multiple dialogue assets can be loaded and pushed to `DialogueHandles`:
 
 ```rust
-fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_res: ResMut<DialogueRes>) {
-    dialogue_res.dialogues.push(asset_server.load("dialogue_stage1.ron"));
-    dialogue_res.dialogues.push(asset_server.load("dialogue_stage2.bin"));
+fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut handles: ResMut<DialogueHandles>) {
+    handles.push(asset_server.load("dialogue_stage1.ron"));
+    handles.push(asset_server.load("dialogue_stage2.bin"));
 }
 ```
 
 ### Dialogue variables
 
-Variables can be put in asset in syntax `{{your_variable}}`. Their value can be defined in `DialogueRes`.
+Variables can be put in asset in syntax `{{your_variable}}`. Their value can be defined in `DialogueConfig`.
 
 ```rust
-fn startup(mut dialogue_res: ResMut<DialogueRes>) {
+fn startup(mut config: ResMut<DialogueConfig>) {
     // Plugin will look up for variable {{hero_name}} and replace it
-    dialogue_res
+    config
         .variables
         .insert("hero_name".to_string(), "Sam".to_string());
 }
@@ -172,11 +172,11 @@ If language is not specified anywhere, the first language of each dialogue will 
 
 There are 3 places to set language for dialogue, with priority from low to high, are:
 
-1. In `DialogueRes`:
+1. In `DialogueConfig`:
 
     ```rust
-    fn startup(mut dialogue_res: ResMut<DialogueRes>) {
-        dialogue_res.global_lang = Some(Language::Eng);
+    fn startup(mut config: ResMut<DialogueConfig>) {
+        config.global_lang = Some(Language::Eng);
     }
     ```
 
