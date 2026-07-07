@@ -41,11 +41,13 @@ Asset Syntax
 )
 ```
 
-* `class_id`: `u64`. The character class id. For example: Villager, Hero, etc. should have unique id.
-* `state_id`: `u64`. The character state id. For example: Idle, Arguing, Cheering, etc. should have unique id.
-* `language_code`: `String`. 3 character language code by ISO 639-3. For example: `eng`, `spa`, etc.
-* `affects`: This mean the state of entity with `target_class_id` will be change to `target_state_id` after this dialogue.
-* `events`: Array of event id. They will be triggered by plugin if the dialogue is used.
+|              |        |                                                                                                                                      |
+|:------------ |:------ |:------------------------------------------------------------------------------------------------------------------------------------ |
+|class_id      |u64     |The character class id. For example: Villager, Hero, etc. should have unique id.                                                      |
+|state_id      |u64     |The character state id. For example: Idle, Arguing, Cheering, etc. should have unique id.                                             |
+|language_code |String  |3 character language code by ISO 639-3. For example: `eng`, `spa`, etc.                                                               |
+|affects       |HashMap |If a character with `target_class_id` talks to the one with this dialogue, that character state will be changed to `target_state_id`. |
+|events        |[u64]   |Array of event id. They will be triggered by plugin if the dialogue is used.                                                          |
 
 Usage
 -----
@@ -116,11 +118,13 @@ fn spawn(mut commands: Commands) {
 ### Get dialogue
 
 To get a dialogue, you need to send the request first:
+
 ```rust
 commands.trigger(RequestDialogue::new(hero_entity));
 ```
 
 Then, the dialogue will be returned through `DialogueAvailable` event:
+
 ```rust
 fn dialogue_available(trigger: On<DialogueAvailable>) {
     for dialogue in trigger.dialogues.iter() {
@@ -150,15 +154,43 @@ fn event_trigger(trigger: On<DialogueTrigger>) {
 ### Choice
 
 All dialogues in a same state of character can be treated as choices:
+
 ```rust
 commands.trigger(RequestDialogue::new(hero_entity).with_type(RequestType::All));
 ```
 
 Then a choice can be set by request again with the dialogue index. For example, if we select the first choice,
 send a request with index `0`:
+
 ```rust
-commands. trigger(RequestDialogue::new(hero_entity).with_type(RequestType::One(0)));
+commands.trigger(RequestDialogue::new(hero_entity).with_type(RequestType::One(0)));
 ```
+
+### Localization
+
+If language is not specified anywhere, the first language of each dialogue will be returned.
+
+There are 3 places to set language for dialogue, with priority from low to high, are:
+
+1. In `DialogueRes`:
+
+    ```rust
+    fn startup(mut dialogue_res: ResMut<DialogueRes>) {
+        dialogue_res.global_lang = Some(Language::Eng);
+    }
+    ```
+
+2. In `DialogueComponent`:
+
+    ```rust
+    commands.spawn(DialogueComponent::new(1, 2).with_lang(Language::Eng));
+    ```
+
+3. In `RequestDialogue`:
+
+    ```rust
+    commands.trigger(RequestDialogue::new(hero_entity).with_lang(Language::Eng));
+    ```
 
 License
 -------
@@ -174,7 +206,7 @@ Compatible Bevy Versions
 | 0.19 | 0.2-0.3       |
 | 0.18 | 0.1           |
 
----------
+---
 
 <div align="center">
 
