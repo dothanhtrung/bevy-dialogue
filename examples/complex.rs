@@ -9,7 +9,7 @@ use bevy_dialogue::{
     DialoguePlugin,
     DialogueRes,
     DialogueTrigger,
-    NextDialogue,
+    DialogueAvailable,
     RequestDialogue,
     RequestType,
 };
@@ -187,7 +187,7 @@ fn talk_to_villager(
     // Reset hero state to normal
     dialogue_component.state = CharacterState::Normal as u64;
 
-    // Request dialog for Hero
+    // Request dialogue for Hero
     commands.trigger(RequestDialogue {
         entity: hero_entity,
         // talk to specific villager. If the villager currently can affect to the hero, the hero state will change by that
@@ -197,7 +197,7 @@ fn talk_to_villager(
         request_lang: None,
     });
 
-    // Request dialog for Villager
+    // Request dialogue for Villager
     commands.trigger(RequestDialogue {
         entity: *villager,
         // talk to specific hero. If the
@@ -213,36 +213,26 @@ fn talk_to_monster(
     hero: Single<Entity, (With<Hero>, With<DialogueComponent>)>,
     monster: Single<Entity, (With<Monster>, With<DialogueComponent>)>,
 ) {
-    // Request dialog for Hero
-    commands.trigger(RequestDialogue {
-        entity: *hero,
-        to: Some(*monster),
-        request_type: RequestType::Random,
-        request_lang: None,
-    });
+    // Request dialogue for Hero
+    commands.trigger(RequestDialogue::new(*hero).talk_to(*monster));
 
-    // Request dialog for monster
-    commands.trigger(RequestDialogue {
-        entity: *monster,
-        to: Some(*hero),
-        request_type: RequestType::Random,
-        request_lang: None,
-    });
+    // Request dialogue for monster
+    commands.trigger(RequestDialogue::new(*monster).talk_to(*hero));
 }
 
-fn print_hero_dialogue(trigger: On<NextDialogue>, mut text: Single<&mut Text, With<Hero>>) {
+fn print_hero_dialogue(trigger: On<DialogueAvailable>, mut text: Single<&mut Text, With<Hero>>) {
     if let Some(dialogue) = trigger.dialogues.first() {
         ***text = dialogue.clone();
     }
 }
 
-fn print_monster_dialogue(trigger: On<NextDialogue>, mut text: Single<&mut Text, With<Monster>>) {
+fn print_monster_dialogue(trigger: On<DialogueAvailable>, mut text: Single<&mut Text, With<Monster>>) {
     if let Some(dialogue) = trigger.dialogues.first() {
         ***text = dialogue.clone();
     }
 }
 
-fn print_villager_dialogue(trigger: On<NextDialogue>, mut text: Single<&mut Text, With<Villager>>) {
+fn print_villager_dialogue(trigger: On<DialogueAvailable>, mut text: Single<&mut Text, With<Villager>>) {
     if let Some(dialogue) = trigger.dialogues.first() {
         ***text = dialogue.clone();
     }

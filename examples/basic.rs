@@ -3,7 +3,7 @@ use bevy_dialogue::{
     DialogueComponent,
     DialoguePlugin,
     DialogueRes,
-    NextDialogue,
+    DialogueAvailable,
     RequestDialogue,
 };
 
@@ -53,8 +53,8 @@ fn click_to_talk(
     }
 }
 
-// Character dialogue will be returned through event `NextDialogue`
-fn print_dialogue(trigger: On<NextDialogue>, mut query: Query<&mut Text>) {
+// Character dialogue will be returned through event `DialogueAvailable`
+fn print_dialogue(trigger: On<DialogueAvailable>, mut query: Query<&mut Text>) {
     for mut text in query.iter_mut() {
         let Some(dialogue) = trigger.dialogues.first() else {
             return;

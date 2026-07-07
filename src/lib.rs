@@ -1,3 +1,7 @@
+//! Bevy plugin for load and retrieve characters dialogues. (**_UI not included_**)
+//!
+//! Please see [examples](./examples) for more detail.
+
 use bevy::prelude::{
     App,
     Asset,
@@ -38,6 +42,7 @@ use std::collections::{
     HashMap,
 };
 
+/// The main plugin. Add this to your `App`.
 #[derive(Default)]
 pub struct DialoguePlugin;
 
@@ -66,29 +71,33 @@ pub struct DialogueTrigger {
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Dialogue {
+    /// Dialogue content in multiple languages
     #[serde(default)]
     pub contents: BTreeMap<Language, String>,
     /// The class this dialogue will affect and the state that class will change to
     #[serde(default)]
     pub affects: BTreeMap<u64, u64>,
+    /// The event ids that this dialogue can trigger
     #[serde(default)]
     pub events: Vec<u64>,
 }
 
 #[derive(Resource, Default)]
 pub struct DialogueRes {
+    /// Multiple loaded asset handles are stored in this.
+    /// The plugin will scan through all files and stop right after found the desired dialogue.
     pub dialogues: Vec<Handle<DialogueAsset>>,
     /// Variable to be replaced in the dialogue
     pub variables: HashMap<String, String>,
 }
 
-/// List of dialogues by character kind and by state
+/// Dialogue asset type. Support both `.ron` and `.bin`.
 #[derive(Asset, TypePath, Serialize, Deserialize, Default)]
 pub struct DialogueAsset {
     pub dialogues: HashMap<u64, BTreeMap<u64, Vec<Dialogue>>>,
 }
 
-#[derive(Component, Default, Clone)]
+#[derive(Component, Default, Clone, Serialize, Deserialize)]
 pub struct DialogueComponent {
     /// Dialogue class id
     pub class: u64,
@@ -109,26 +118,33 @@ impl DialogueComponent {
             default_lang: None,
         }
     }
+
+    pub fn with_lang(mut self, lang: Language) -> Self {
+        self.default_lang = Some(lang);
+        self
+    }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub enum RequestType {
     #[default]
-    /// Return a random dialogue of current state
+    /// Request a random dialogue of current state
     Random,
-    /// Return all dialogues of current state
+    /// Request all dialogues of current state
     All,
+    /// Request a specific dialogue in the current state
     One(usize),
 }
 
-#[derive(EntityEvent)]
+#[derive(EntityEvent, Clone)]
 pub struct RequestDialogue {
+    /// Entity of the one who is talking
     #[entity_event]
     pub entity: Entity,
     /// The target whom character talk to
     pub to: Option<Entity>,
     pub request_type: RequestType,
-    /// Temporary override component default language
+    /// Override component's default language
     pub request_lang: Option<Language>,
 }
 
@@ -142,22 +158,31 @@ impl RequestDialogue {
         }
     }
 
-    pub fn to(entity: Entity, to: Entity) -> Self {
-        Self {
-            entity,
-            to: Some(to),
-            request_type: RequestType::default(),
-            request_lang: None,
-        }
+    pub fn talk_to(mut self, to: Entity) -> Self {
+        self.to = Some(to);
+        self
+    }
+
+    pub fn with_type(mut self, request_type: RequestType) -> Self {
+        self.request_type = request_type;
+        self
+    }
+
+    pub fn with_lang(mut self, lang: Language) -> Self {
+        self.request_lang = Some(lang);
+        self
     }
 }
 
+/// Returned when found the dialogue
 #[derive(EntityEvent, Clone)]
-pub struct NextDialogue {
+pub struct DialogueAvailable {
     pub entity: Entity,
     pub dialogues: Vec<String>,
 }
 
+/// Change the character's state.
+/// You can use this event or modify the component directly.
 #[derive(Event)]
 pub struct DialogueStateChanged {
     pub entity: Entity,
@@ -209,15 +234,15 @@ fn find_dialogue(
                     let mut ret_dialogues = Vec::new();
                     match trigger.request_type {
                         RequestType::One(index) => {
-                            if let Some(dialog) = dialogues.get(index) {
-                                for event in dialog.events.iter() {
+                            if let Some(dialogue) = dialogues.get(index) {
+                                for event in dialogue.events.iter() {
                                     commands.trigger(DialogueTrigger {
                                         entity: trigger.entity,
                                         event_id: *event,
                                     });
                                 }
 
-                                for (lang, content) in dialog.contents.iter() {
+                                for (lang, content) in dialogue.contents.iter() {
                                     if let Some(request_lang) = request_lang {
                                         if *lang != request_lang {
                                             continue;
@@ -233,8 +258,8 @@ fn find_dialogue(
                             }
                         }
                         RequestType::All => {
-                            for dialog in dialogues.iter() {
-                                for (lang, content) in dialog.contents.iter() {
+                            for dialogue in dialogues.iter() {
+                                for (lang, content) in dialogue.contents.iter() {
                                     if let Some(request_lang) = request_lang {
                                         if *lang != request_lang {
                                             continue;
@@ -248,16 +273,16 @@ fn find_dialogue(
                         }
                         RequestType::Random => {
                             let random_msg_idx = rng.random_range(0..dialogues.len());
-                            let dialog = dialogues[random_msg_idx].clone();
+                            let dialogue = dialogues[random_msg_idx].clone();
 
-                            for event in dialog.events.iter() {
+                            for event in dialogue.events.iter() {
                                 commands.trigger(DialogueTrigger {
                                     entity: trigger.entity,
                                     event_id: *event,
                                 });
                             }
 
-                            for (lang, content) in dialog.contents.iter() {
+                            for (lang, content) in dialogue.contents.iter() {
                                 if let Some(request_lang) = request_lang {
                                     if *lang != request_lang {
                                         continue;
@@ -274,7 +299,7 @@ fn find_dialogue(
                         }
                     }
 
-                    let res = NextDialogue {
+                    let res = DialogueAvailable {
                         entity: trigger.entity,
                         dialogues: ret_dialogues,
                     };
