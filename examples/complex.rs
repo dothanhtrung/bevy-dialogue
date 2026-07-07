@@ -13,6 +13,7 @@ use bevy_dialogue::{
     RequestDialogue,
     RequestType,
 };
+use isolang::Language;
 
 fn main() {
     App::new()
@@ -42,8 +43,6 @@ enum CharacterClass {
 #[repr(u64)]
 enum CharacterState {
     Normal = 1,
-    Attack,
-    Disagree,
 }
 
 fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_res: ResMut<DialogueRes>) {
@@ -55,6 +54,10 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_
     // Load the dialogue file. Multiple files are supported.
     dialogue_res.dialogues.push(asset_server.load("dialogue_sample.ron"));
 
+    // Dialogue language can be set through property `global_lang`.
+    // This can be overriden in DialogueComponent or RequestDialogue.
+    dialogue_res.global_lang = Some(Language::Eng);
+
     // Spawn entity with DialogueComponent and listen the dialogue event on it
     commands
         .spawn((
@@ -64,10 +67,12 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, mut dialogue_
         .observe(print_hero_dialogue)
         .observe(event_trigger);
 
+    // Localization can be set for each DialogueComponent
     commands
         .spawn((
             Villager,
-            DialogueComponent::new(CharacterClass::Villager as u64, CharacterState::Normal as u64),
+            DialogueComponent::new(CharacterClass::Villager as u64, CharacterState::Normal as u64)
+                .with_lang(Language::Eng),
         ))
         .observe(print_villager_dialogue);
 

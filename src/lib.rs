@@ -74,14 +74,21 @@ pub struct Dialogue {
     /// Dialogue content in multiple languages
     #[serde(default)]
     pub contents: BTreeMap<Language, String>,
+
     /// The class this dialogue will affect and the state that class will change to
     #[serde(default)]
     pub affects: BTreeMap<u64, u64>,
+
     /// The event ids that this dialogue can trigger
     #[serde(default)]
     pub events: Vec<u64>,
+
+    // TODO: Condition
+    // #[serde(default)]
+    // pub conditions: HashSet<u64>,
 }
 
+// TODO: Move `variables` and `global_lang` to separate Resource which supports serialize for save game
 #[derive(Resource, Default)]
 pub struct DialogueRes {
     /// Multiple loaded asset handles are stored in this.
@@ -89,6 +96,8 @@ pub struct DialogueRes {
     pub dialogues: Vec<Handle<DialogueAsset>>,
     /// Variable to be replaced in the dialogue
     pub variables: HashMap<String, String>,
+    /// Language of all characters. Can be overriden by `DialogueComponent` or `RequestDialogue`
+    pub global_lang: Option<Language>,
 }
 
 /// Dialogue asset type. Support both `.ron` and `.bin`.
@@ -223,7 +232,11 @@ fn find_dialogue(
                 let request_lang = if trigger.request_lang.is_some() {
                     trigger.request_lang
                 } else {
-                    if character.default_lang.is_some() { character.default_lang } else { None }
+                    if character.default_lang.is_some() {
+                        character.default_lang
+                    } else {
+                        if dialogue_res.global_lang.is_some() { dialogue_res.global_lang } else { None }
+                    }
                 };
 
                 if !dialogues.is_empty() {
