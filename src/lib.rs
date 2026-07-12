@@ -1,28 +1,29 @@
-//! Bevy plugin for load and retrieve characters dialogues. (**_UI not included_**)
-//!
-//! Please see [examples](./examples) for more detail.
+#![doc=include_str!("../README.md")]
 
-use bevy::prelude::{
-    App,
-    Asset,
-    AssetApp,
-    Assets,
-    Commands,
-    Component,
-    Deref,
-    DerefMut,
-    Entity,
-    EntityEvent,
-    Event,
-    Handle,
-    On,
-    Plugin,
-    Query,
-    Res,
-    Resource,
-    Single,
-    TypePath,
-    With,
+use bevy::{
+    platform::collections::HashMap,
+    prelude::{
+        App,
+        Asset,
+        AssetApp,
+        Assets,
+        Commands,
+        Component,
+        Deref,
+        DerefMut,
+        Entity,
+        EntityEvent,
+        Event,
+        Handle,
+        On,
+        Plugin,
+        Query,
+        Res,
+        Resource,
+        Single,
+        TypePath,
+        With,
+    },
 };
 use bevy_rand::prelude::{
     EntropyPlugin,
@@ -39,10 +40,7 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use std::collections::{
-    BTreeMap,
-    HashMap,
-};
+use std::collections::BTreeMap;
 
 /// The main plugin. Add this to your `App`.
 #[derive(Default)]
@@ -80,7 +78,7 @@ pub struct Dialogue {
 
     /// The class this dialogue will affect and the state that class will change to
     #[serde(default)]
-    pub affects: BTreeMap<u64, u64>,
+    pub affects: HashMap<u64, u64>,
 
     /// The event ids that this dialogue can trigger
     #[serde(default)]
