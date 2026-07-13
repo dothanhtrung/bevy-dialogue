@@ -1,0 +1,13 @@
+[package]
+name = "unnecessary_demo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = ">=0.19", features = ["dynamic_linking"] }
+bevy_dialogue = { path = "../.." }
+bevy_auto_timer = { version = ">=0.4" }
+bevy_2dviewangle = { version = ">=0.13"}
+bevy_text_edit = { version = ">=0.9" }
+bevy_asset_loader = { version = ">=0.27", features = ["2d"] }
+isolang = { version = "2.4", default-features = false }
