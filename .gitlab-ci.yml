@@ -1,8 +1,7 @@
 image: "dothanhtrung/bevy-dev:latest"
 
 before_script:
-  - rm -f .cargo/config.toml
-  - rm -f rust-toolchain.toml
+  - sed -i '/^target-dir =/d' .cargo/config.toml
 
 cache: &global_cache
   key: cargo_cache
@@ -15,16 +14,6 @@ cache: &global_cache
 
 variables:
   CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
-
-#check:
-#  stage: build
-#  script:
-#    - rustc --version && cargo --version  # Print version info for debugging
-#    - cargo check --examples
-#    - cargo check --features=experimental --examples
-#  cache:
-#    <<: *global_cache
-#    policy: pull
 
 test:
   stage: test
