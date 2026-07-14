@@ -44,7 +44,7 @@ Asset Syntax
 )
 ```
 
-|              |        |                                                                                                                                      |
+| Field        | Type   | Description                                                                                                                          |
 |:------------ |:------ |:------------------------------------------------------------------------------------------------------------------------------------ |
 |class_id      |u64     |The character class id. For example: Villager, Hero, etc. should have unique id.                                                      |
 |state_id      |u64     |The character state id. For example: Idle, Arguing, Cheering, etc. should have unique id.                                             |
@@ -206,7 +206,7 @@ Compatible Bevy Versions
 
 | bevy | bevy_dialogue |
 |------|---------------|
-| 0.19 | 0.2-0.3       |
+| 0.19 | 0.2-0.4       |
 | 0.18 | 0.1           |
 
 ---
