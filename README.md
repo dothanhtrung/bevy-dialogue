@@ -21,7 +21,7 @@ Bevy plugin for load and retrieve characters dialogues. (**_UI not included_**)
 Asset Syntax
 ------------
 
-> Dialogue asset can be **text file** (RON format) or **binary file**. There is a GUI tool [Dialogue Editor](https://gitlab.com/kimtinh/dialogue-editor)
+> Dialogue asset can be **text file** (RON format) or **binary file**. There is a GUI tool [Dialogue Editor](https://gitlab.com/245project/tools/dialogue-editor)
 > for creating and exporting dialogue asset.
 
 ```ron
