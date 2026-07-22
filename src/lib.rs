@@ -34,13 +34,13 @@ use bevy_support_misc::{
     bin_asset_loader::BinLoaderPlugin,
     ron_asset_loader::RonLoaderPlugin,
 };
+use indexmap::IndexMap;
 use isolang::Language;
 use rand::RngExt;
 use serde::{
     Deserialize,
     Serialize,
 };
-use std::collections::BTreeMap;
 
 /// The main plugin. Add this to your `App`.
 #[derive(Default)]
@@ -74,7 +74,7 @@ pub struct DialogueTrigger {
 pub struct Dialogue {
     /// Dialogue content in multiple languages
     #[serde(default)]
-    pub contents: BTreeMap<Language, String>,
+    pub contents: IndexMap<Language, String>,
 
     /// The class this dialogue will affect and the state that class will change to
     #[serde(default)]
@@ -105,7 +105,7 @@ pub struct DialogueConfig {
 /// Dialogue asset type. Support both `.ron` and `.bin`.
 #[derive(Asset, TypePath, Serialize, Deserialize, Default)]
 pub struct DialogueAsset {
-    pub dialogues: HashMap<u64, BTreeMap<u64, Vec<Dialogue>>>,
+    pub dialogues: HashMap<u64, IndexMap<u64, Vec<Dialogue>>>,
 }
 
 #[derive(Component, Default, Clone, Serialize, Deserialize)]
@@ -361,7 +361,7 @@ fn update_state(
                     }
                 }
                 // If current state is not in the state list
-                if !found_current && let Some((first_state, _)) = dialogues.first_key_value() {
+                if !found_current && let Some((first_state, _)) = dialogues.first() {
                     npc.state = *first_state;
                 }
             }
