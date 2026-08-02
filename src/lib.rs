@@ -93,8 +93,7 @@ pub struct Dialogue {
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct DialogueHandles(pub Vec<Handle<DialogueAsset>>);
 
-// TODO: Move `variables` and `global_lang` to separate Resource which supports serialize for save game
-#[derive(Resource, Default, Serialize, Deserialize)]
+#[derive(Resource, Default, Serialize, Deserialize, Clone)]
 pub struct DialogueConfig {
     /// Variable to be replaced in the dialogue
     pub variables: HashMap<String, String>,
