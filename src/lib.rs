@@ -6,6 +6,7 @@ use bevy::{
         message::{
             Message,
             MessageReader,
+            MessageWriter,
         },
         schedule::{
             IntoScheduleConfigs,
@@ -408,6 +409,7 @@ fn on_request_sequence(
     mut commands: Commands,
     mut query: Query<&mut DialogueComponent>,
     mut tracker: ResMut<SequenceTracker>,
+    mut sequence_end: MessageWriter<DialogueSequenceEnd>,
     dialogue_config: Res<DialogueConfig>,
     dialogue_handles: Res<DialogueHandles>,
     dialogue_asset: Res<Assets<DialogueAsset>>,
@@ -442,7 +444,12 @@ fn on_request_sequence(
                 let dialogue = if let Some(dialogue_pos) = sequence.dialogue_pos
                     && dialogue_pos < state.len()
                 {
-                    tracker.progress = (tracker.progress + 1) % sequences.len();
+                    tracker.progress += 1;
+                    if tracker.progress > sequences.len() {
+                        tracker.progress = 0;
+                        sequence_end.write(DialogueSequenceEnd(sequence_id));
+                    }
+
                     character.dialogue = dialogue_pos;
                     state[dialogue_pos].clone()
                 } else {
@@ -451,8 +458,12 @@ fn on_request_sequence(
                         character.dialogue = tracker.dialogue_pos;
                         tracker.dialogue_pos += 1;
                         if tracker.dialogue_pos >= state.len() {
-                            tracker.progress = (tracker.progress + 1) % sequences.len();
                             tracker.dialogue_pos = 0;
+                            tracker.progress += 1;
+                            if tracker.progress > sequences.len() {
+                                tracker.progress = 0;
+                                sequence_end.write(DialogueSequenceEnd(sequence_id));
+                            }
                         }
                         ret
                     } else {
@@ -470,6 +481,12 @@ fn on_request_sequence(
                     }
                 };
 
+                for event in dialogue.events.iter() {
+                    commands.trigger(DialogueTrigger {
+                        entity: *character_id,
+                        event_id: *event,
+                    });
+                }
                 for (lang, content) in dialogue.contents.iter() {
                     if let Some(request_lang) = request_lang
                         && *lang != request_lang
