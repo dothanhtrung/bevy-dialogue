@@ -1,6 +1,18 @@
 #![doc=include_str!("../README.md")]
 
 use bevy::{
+    app::Update,
+    ecs::{
+        message::{
+            Message,
+            MessageReader,
+        },
+        schedule::{
+            IntoScheduleConfigs,
+            common_conditions::on_message,
+        },
+        system::ResMut,
+    },
     platform::collections::HashMap,
     prelude::{
         App,
@@ -58,7 +70,11 @@ impl Plugin for DialoguePlugin {
         .init_asset::<DialogueAsset>()
         .insert_resource(DialogueHandles::default())
         .insert_resource(DialogueConfig::default())
-        .add_observer(find_dialogue)
+        .insert_resource(SequenceTracker::default())
+        .add_message::<RequestSequence>()
+        .add_message::<DialogueSequenceEnd>()
+        .add_systems(Update, on_request_sequence.run_if(on_message::<RequestSequence>))
+        .add_observer(on_request_dialogue)
         .add_observer(update_state);
     }
 }
@@ -68,6 +84,14 @@ impl Plugin for DialoguePlugin {
 pub struct DialogueTrigger {
     pub entity: Entity,
     pub event_id: u64,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+struct SequenceItem {
+    class_id: u64,
+    state_id: u64,
+    /// If dialogue_pos is not specified, all dialogues in specified state will be used
+    dialogue_pos: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -101,10 +125,21 @@ pub struct DialogueConfig {
     pub global_lang: Option<Language>,
 }
 
+#[derive(Resource, Default, Serialize, Deserialize, Clone)]
+pub struct SequenceTracker {
+    pub sequence_id: u64,
+    pub progress: usize,
+    pub dialogue_pos: usize,
+}
+
 /// Dialogue asset type. Support both `.ron` and `.bin`.
 #[derive(Asset, TypePath, Serialize, Deserialize, Default)]
 pub struct DialogueAsset {
-    pub dialogues: HashMap<u64, IndexMap<u64, Vec<Dialogue>>>,
+    #[serde(default)]
+    dialogues: HashMap<u64, IndexMap<u64, Vec<Dialogue>>>,
+
+    #[serde(default)]
+    sequences: IndexMap<u64, Vec<SequenceItem>>,
 }
 
 #[derive(Component, Default, Clone, Serialize, Deserialize)]
@@ -184,6 +219,40 @@ impl RequestDialogue {
     }
 }
 
+#[derive(Message, Default)]
+pub struct RequestSequence {
+    pub sequence_id: Option<u64>,
+    /// participant by class_id
+    pub participants: HashMap<u64, Entity>,
+    /// Override component's default language
+    pub request_lang: Option<Language>,
+}
+
+impl RequestSequence {
+    pub fn new(sequence_id: u64) -> Self {
+        Self {
+            sequence_id: Some(sequence_id),
+            participants: HashMap::new(),
+            request_lang: None,
+        }
+    }
+
+    pub fn with_participant(mut self, class_id: u64, entity: Entity) -> Self {
+        self.participants.insert(class_id, entity);
+        self
+    }
+
+    pub fn with_participants(mut self, participants: HashMap<u64, Entity>) -> Self {
+        self.participants = participants;
+        self
+    }
+
+    pub fn with_lang(mut self, lang: Language) -> Self {
+        self.request_lang = Some(lang);
+        self
+    }
+}
+
 /// Returned when found the dialogue
 #[derive(EntityEvent, Clone)]
 pub struct DialogueAvailable {
@@ -196,10 +265,15 @@ pub struct DialogueAvailable {
 #[derive(Event)]
 pub struct DialogueStateChanged {
     pub entity: Entity,
+    /// If the next_state is not set, the next state will be detect by order in the asset
     pub next_state: Option<u64>,
 }
 
-fn find_dialogue(
+/// Notify that sequence has end
+#[derive(Message)]
+pub struct DialogueSequenceEnd(pub u64);
+
+fn on_request_dialogue(
     trigger: On<RequestDialogue>,
     mut commands: Commands,
     dialogue_config: Res<DialogueConfig>,
@@ -258,10 +332,10 @@ fn find_dialogue(
                                 }
 
                                 for (lang, content) in dialogue.contents.iter() {
-                                    if let Some(request_lang) = request_lang {
-                                        if *lang != request_lang {
-                                            continue;
-                                        }
+                                    if let Some(request_lang) = request_lang
+                                        && *lang != request_lang
+                                    {
+                                        continue;
                                     }
                                     let content = replace_templates(content, &dialogue_config.variables);
                                     ret_dialogues.push(content);
@@ -275,11 +349,12 @@ fn find_dialogue(
                         RequestType::All => {
                             for dialogue in dialogues.iter() {
                                 for (lang, content) in dialogue.contents.iter() {
-                                    if let Some(request_lang) = request_lang {
-                                        if *lang != request_lang {
-                                            continue;
-                                        }
+                                    if let Some(request_lang) = request_lang
+                                        && *lang != request_lang
+                                    {
+                                        continue;
                                     }
+
                                     let content = replace_templates(content, &dialogue_config.variables);
                                     ret_dialogues.push(content);
                                     break;
@@ -298,10 +373,10 @@ fn find_dialogue(
                             }
 
                             for (lang, content) in dialogue.contents.iter() {
-                                if let Some(request_lang) = request_lang {
-                                    if *lang != request_lang {
-                                        continue;
-                                    }
+                                if let Some(request_lang) = request_lang
+                                    && *lang != request_lang
+                                {
+                                    continue;
                                 }
                                 let content = replace_templates(content, &dialogue_config.variables);
                                 ret_dialogues.push(content);
@@ -323,6 +398,95 @@ fn find_dialogue(
 
                 // Dialogue found. No need to check other assets
                 break;
+            }
+        }
+    }
+}
+
+fn on_request_sequence(
+    mut request: MessageReader<RequestSequence>,
+    mut commands: Commands,
+    mut query: Query<&mut DialogueComponent>,
+    mut tracker: ResMut<SequenceTracker>,
+    dialogue_config: Res<DialogueConfig>,
+    dialogue_handles: Res<DialogueHandles>,
+    dialogue_asset: Res<Assets<DialogueAsset>>,
+) {
+    'msg_loop: for request in request.read() {
+        for handle in dialogue_handles.iter() {
+            let Some(dialogue_asset) = dialogue_asset.get(handle) else {
+                continue;
+            };
+
+            let sequence_id = request.sequence_id.unwrap_or(tracker.sequence_id);
+            let Some(sequences) = dialogue_asset.sequences.get(&sequence_id) else {
+                continue;
+            };
+
+            // End of sequence
+            if tracker.progress >= sequences.len() {
+                continue 'msg_loop;
+            }
+
+            let sequence = &sequences[tracker.progress];
+            let Some(character_id) = request.participants.get(&sequence.class_id) else {
+                continue 'msg_loop;
+            };
+            let Ok(mut character) = query.get_mut(*character_id) else {
+                continue 'msg_loop;
+            };
+
+            if let Some(class) = dialogue_asset.dialogues.get(&sequence.class_id)
+                && let Some(state) = class.get(&sequence.state_id)
+            {
+                let dialogue = if let Some(dialogue_pos) = sequence.dialogue_pos
+                    && dialogue_pos < state.len()
+                {
+                    tracker.progress = (tracker.progress + 1) % sequences.len();
+                    character.dialogue = dialogue_pos;
+                    state[dialogue_pos].clone()
+                } else {
+                    if tracker.dialogue_pos < state.len() {
+                        let ret = state[tracker.dialogue_pos].clone();
+                        character.dialogue = tracker.dialogue_pos;
+                        tracker.dialogue_pos += 1;
+                        if tracker.dialogue_pos >= state.len() {
+                            tracker.progress = (tracker.progress + 1) % sequences.len();
+                            tracker.dialogue_pos = 0;
+                        }
+                        ret
+                    } else {
+                        continue 'msg_loop;
+                    }
+                };
+
+                let request_lang = if request.request_lang.is_some() {
+                    request.request_lang
+                } else {
+                    if character.default_lang.is_some() {
+                        character.default_lang
+                    } else {
+                        if dialogue_config.global_lang.is_some() { dialogue_config.global_lang } else { None }
+                    }
+                };
+
+                for (lang, content) in dialogue.contents.iter() {
+                    if let Some(request_lang) = request_lang
+                        && *lang != request_lang
+                    {
+                        continue;
+                    }
+                    let content = replace_templates(content, &dialogue_config.variables);
+
+                    commands.trigger(DialogueAvailable {
+                        entity: *character_id,
+                        dialogues: vec![content],
+                    });
+
+                    break;
+                }
+            } else {
+                continue 'msg_loop;
             }
         }
     }
