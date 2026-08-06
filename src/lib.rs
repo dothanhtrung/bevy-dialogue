@@ -37,6 +37,7 @@ use bevy::{
         TypePath,
         With,
     },
+    utils::default,
 };
 use bevy_rand::prelude::{
     EntropyPlugin,
@@ -126,12 +127,15 @@ pub struct DialogueConfig {
     pub global_lang: Option<Language>,
 }
 
-#[derive(Resource, Default, Serialize, Deserialize, Clone)]
-pub struct SequenceTracker {
-    pub sequence_id: u64,
-    pub progress: usize,
-    pub dialogue_pos: usize,
+#[derive(Default, Clone)]
+struct Tracker {
+    participants: HashMap<u64, Entity>,
+    progress: usize,
+    dialogue_pos: usize,
 }
+
+#[derive(Resource, Default, Clone, Deref, DerefMut)]
+struct SequenceTracker(HashMap<u64, Tracker>);
 
 /// Dialogue asset type. Support both `.ron` and `.bin`.
 #[derive(Asset, TypePath, Serialize, Deserialize, Default)]
@@ -222,8 +226,9 @@ impl RequestDialogue {
 
 #[derive(Message, Default)]
 pub struct RequestSequence {
-    pub sequence_id: Option<u64>,
-    /// participant by class_id
+    pub sequence_id: u64,
+    /// Participant by class_id.
+    /// Only need to set once at the first request of each sequence id.
     pub participants: HashMap<u64, Entity>,
     /// Override component's default language
     pub request_lang: Option<Language>,
@@ -232,7 +237,7 @@ pub struct RequestSequence {
 impl RequestSequence {
     pub fn new(sequence_id: u64) -> Self {
         Self {
-            sequence_id: Some(sequence_id),
+            sequence_id,
             participants: HashMap::new(),
             request_lang: None,
         }
@@ -408,7 +413,7 @@ fn on_request_sequence(
     mut request: MessageReader<RequestSequence>,
     mut commands: Commands,
     mut query: Query<&mut DialogueComponent>,
-    mut tracker: ResMut<SequenceTracker>,
+    mut trackers: ResMut<SequenceTracker>,
     mut sequence_end: MessageWriter<DialogueSequenceEnd>,
     dialogue_config: Res<DialogueConfig>,
     dialogue_handles: Res<DialogueHandles>,
@@ -420,10 +425,21 @@ fn on_request_sequence(
                 continue;
             };
 
-            let sequence_id = request.sequence_id.unwrap_or(tracker.sequence_id);
-            let Some(sequences) = dialogue_asset.sequences.get(&sequence_id) else {
-                continue;
+            let Some(sequences) = dialogue_asset.sequences.get(&request.sequence_id) else {
+                continue 'msg_loop;
             };
+
+            if !trackers.contains_key(&request.sequence_id) {
+                trackers.insert(
+                    request.sequence_id,
+                    Tracker {
+                        participants: request.participants.clone(),
+                        ..default()
+                    },
+                );
+            }
+
+            let tracker = trackers.get_mut(&request.sequence_id).unwrap();
 
             // End of sequence
             if tracker.progress >= sequences.len() {
@@ -431,7 +447,7 @@ fn on_request_sequence(
             }
 
             let sequence = &sequences[tracker.progress];
-            let Some(character_id) = request.participants.get(&sequence.class_id) else {
+            let Some(character_id) = tracker.participants.get(&sequence.class_id) else {
                 continue 'msg_loop;
             };
             let Ok(mut character) = query.get_mut(*character_id) else {
@@ -447,7 +463,7 @@ fn on_request_sequence(
                     tracker.progress += 1;
                     if tracker.progress > sequences.len() {
                         tracker.progress = 0;
-                        sequence_end.write(DialogueSequenceEnd(sequence_id));
+                        sequence_end.write(DialogueSequenceEnd(request.sequence_id));
                     }
 
                     character.dialogue = dialogue_pos;
@@ -462,7 +478,7 @@ fn on_request_sequence(
                             tracker.progress += 1;
                             if tracker.progress > sequences.len() {
                                 tracker.progress = 0;
-                                sequence_end.write(DialogueSequenceEnd(sequence_id));
+                                sequence_end.write(DialogueSequenceEnd(request.sequence_id));
                             }
                         }
                         ret
