@@ -1,5 +1,7 @@
 #![doc=include_str!("../README.md")]
 
+#[cfg(feature = "log")]
+use bevy::log::warn;
 use bevy::{
     app::Update,
     ecs::{
@@ -37,7 +39,6 @@ use bevy::{
         TypePath,
         With,
     },
-    utils::default,
 };
 use bevy_rand::prelude::{
     EntropyPlugin,
@@ -293,6 +294,8 @@ fn on_request_dialogue(
     };
     for handle in dialogue_handles.iter() {
         let Some(dialogue_asset) = dialogue_asset.get(handle) else {
+            #[cfg(feature = "log")]
+            warn!("Dialogue asset {:?} is not found", handle);
             continue;
         };
 
@@ -422,10 +425,14 @@ fn on_request_sequence(
     'msg_loop: for request in request.read() {
         for handle in dialogue_handles.iter() {
             let Some(dialogue_asset) = dialogue_asset.get(handle) else {
+                #[cfg(feature = "log")]
+                warn!("Dialogue asset {:?} is not found", handle);
                 continue;
             };
 
             let Some(sequences) = dialogue_asset.sequences.get(&request.sequence_id) else {
+                #[cfg(feature = "log")]
+                warn!("Sequence {} not found", request.sequence_id);
                 continue 'msg_loop;
             };
 
@@ -434,7 +441,8 @@ fn on_request_sequence(
                     request.sequence_id,
                     Tracker {
                         participants: request.participants.clone(),
-                        ..default()
+                        progress: 0,
+                        dialogue_pos: 0,
                     },
                 );
             }
@@ -443,29 +451,26 @@ fn on_request_sequence(
 
             // End of sequence
             if tracker.progress >= sequences.len() {
+                tracker.progress = 0;
+                sequence_end.write(DialogueSequenceEnd(request.sequence_id));
                 continue 'msg_loop;
             }
 
             let sequence = &sequences[tracker.progress];
-            let Some(character_id) = tracker.participants.get(&sequence.class_id) else {
+            let Some(character_id) = tracker.participants.get(&sequence.class) else {
                 continue 'msg_loop;
             };
             let Ok(mut character) = query.get_mut(*character_id) else {
                 continue 'msg_loop;
             };
 
-            if let Some(class) = dialogue_asset.dialogues.get(&sequence.class_id)
-                && let Some(state) = class.get(&sequence.state_id)
+            if let Some(class) = dialogue_asset.dialogues.get(&sequence.class)
+                && let Some(state) = class.get(&sequence.state)
             {
-                let dialogue = if let Some(dialogue_pos) = sequence.dialogue_pos
+                let dialogue = if let Some(dialogue_pos) = sequence.dialogue
                     && dialogue_pos < state.len()
                 {
                     tracker.progress += 1;
-                    if tracker.progress > sequences.len() {
-                        tracker.progress = 0;
-                        sequence_end.write(DialogueSequenceEnd(request.sequence_id));
-                    }
-
                     character.dialogue = dialogue_pos;
                     state[dialogue_pos].clone()
                 } else {
@@ -476,13 +481,11 @@ fn on_request_sequence(
                         if tracker.dialogue_pos >= state.len() {
                             tracker.dialogue_pos = 0;
                             tracker.progress += 1;
-                            if tracker.progress > sequences.len() {
-                                tracker.progress = 0;
-                                sequence_end.write(DialogueSequenceEnd(request.sequence_id));
-                            }
                         }
                         ret
                     } else {
+                        #[cfg(feature = "log")]
+                        warn!("Dialogue index is out of bounds");
                         continue 'msg_loop;
                     }
                 };
@@ -519,6 +522,8 @@ fn on_request_sequence(
                     break;
                 }
             } else {
+                #[cfg(feature = "log")]
+                warn!("Class {} or state {} not found", sequence.class, sequence.state);
                 continue 'msg_loop;
             }
         }
