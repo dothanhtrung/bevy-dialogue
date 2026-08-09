@@ -4,6 +4,7 @@ use bevy_dialogue::{
     DialogueComponent,
     DialogueHandles,
     DialoguePlugin,
+    DialogueSequenceEnd,
     RequestSequence,
 };
 
@@ -13,7 +14,10 @@ fn main() {
         // Add the plugin
         .add_plugins(DialoguePlugin)
         .add_systems(Startup, startup)
-        .add_systems(Update, click_to_talk)
+        .add_systems(
+            Update,
+            (click_to_talk, sequence_end.run_if(on_message::<DialogueSequenceEnd>)),
+        )
         .run();
 }
 
@@ -65,7 +69,6 @@ fn startup(
 
 fn click_to_talk(mouse_btn: Res<ButtonInput<MouseButton>>, mut request: MessageWriter<RequestSequence>) {
     if mouse_btn.just_pressed(MouseButton::Left) {
-        // Request random dialogues for character.
         request.write(RequestSequence::new(1));
     }
 }
@@ -78,5 +81,12 @@ fn print_dialogue(trigger: On<DialogueAvailable>, mut query: Query<&mut Text>) {
         };
 
         **text = dialogue.clone();
+    }
+}
+
+fn sequence_end(mut msg: MessageReader<DialogueSequenceEnd>, mut text: Single<&mut Text>) {
+    for msg in msg.read() {
+        ***text = String::new();
+        info!("Sequence {} ended", msg.0);
     }
 }
