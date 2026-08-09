@@ -90,10 +90,10 @@ pub struct DialogueTrigger {
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 struct SequenceItem {
-    class_id: u64,
-    state_id: u64,
+    class: u64,
+    state: u64,
     /// If dialogue_pos is not specified, all dialogues in specified state will be used
-    dialogue_pos: Option<usize>,
+    dialogue: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]

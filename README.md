@@ -41,6 +41,15 @@ Asset Syntax
             ],
         },
     },
+    sequences: {
+        <sequence_id>>: [
+            (
+                class: <class_id>,
+                state: <state_id>,
+                dialogue: Option<usize>,
+            ),
+        ],
+    },
 )
 ```
 
@@ -51,6 +60,7 @@ Asset Syntax
 |language_code |String  |3 character language code by ISO 639-3. For example: `eng`, `spa`, etc.                                                               |
 |affects       |HashMap |If a character with `target_class_id` talks to the one with this dialogue, that character state will be changed to `target_state_id`. |
 |events        |[u64]   |Array of event id. They will be triggered by plugin if the dialogue is used.                                                          |
+|sequence_id   |u64     |ID if the sequence. Sequence is a list of dialogues to be displayed in order. If `dialogue` is not specified, all dialogues in same state will be used. |
 
 Usage
 -----
@@ -168,6 +178,23 @@ send a request with index `0`:
 ```rust
 commands.trigger(RequestDialogue::new(hero_entity).with_type(RequestType::One(0)));
 ```
+
+### Sequence
+
+Sequence is a list of dialogues to be displayed in order.
+
+Request a dialogue in a sequence with `RequestSequence`:
+```rust
+// mut request: MessageWriter<RequestSequence>
+// The participants is only required to be specify once for each sequence
+request.write(
+    RequestSequence::new(sequence_id)
+        .with_participant(class_id_1, entity_1)
+        .with_participant(class_id_2, entity_2),
+);
+```
+
+The dialogue for display will be returned through `DialogueAvailable`.
 
 ### Localization
 
